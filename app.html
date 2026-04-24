@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comida247 - POS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-brand">Comida247</div>
+        <div class="nav-links">
+            <button id="nav-pedidos" class="active" onclick="showSection('pedidos')">Órdenes</button>
+            <button id="nav-cocina" onclick="showSection('cocina')">Cocina</button>
+            <button id="nav-caja" onclick="showSection('caja')">Caja</button>
+            <button id="nav-admin" style="display:none" onclick="showSection('admin')">Admin</button>
+            <button id="nav-super" style="display:none" onclick="showSection('super')">Super</button>
+            <button class="btn-logout" onclick="logout()">Salir</button>
+        </div>
+    </nav>
+
+    <main>
+        <!-- SECCIÓN PEDIDOS -->
+        <section id="pedidos" class="view-section active">
+            <div id="menu-container" class="grid-container"></div>
+        </section>
+
+        <!-- SECCIÓN COCINA -->
+        <section id="cocina" class="view-section">
+            <div id="kitchen-container" class="grid-container"></div>
+        </section>
+
+        <!-- SECCIÓN CAJA -->
+        <section id="caja" class="view-section">
+            <div id="payment-container" class="grid-container"></div>
+        </section>
+
+        <!-- SECCIÓN ADMIN (Productos e Ingredientes) -->
+        <section id="admin" class="view-section">
+            <h2>Gestión de Productos</h2>
+            <button class="btn-add" onclick="openProductModal()">+ Nuevo Producto</button>
+            <div id="admin-products-list" class="admin-list"></div>
+            
+            <h2 style="margin-top: 2rem;">Gestión de Ingredientes</h2>
+            <button class="btn-add" onclick="openIngredientModal()">+ Nuevo Ingrediente</button>
+            <div id="admin-ingredients-list" class="admin-list"></div>
+        </section>
+
+        <!-- SECCIÓN SUPER ADMIN -->
+        <section id="super" class="view-section">
+            <h2>Gestión de Negocios</h2>
+            <button class="btn-add" onclick="openBusinessModal()">+ Nuevo Negocio</button>
+            <div id="super-business-list" class="admin-list"></div>
+
+            <h2 style="margin-top: 2rem;">Gestión de Usuarios Globales</h2>
+            <button class="btn-add" onclick="openUserModal()">+ Nuevo Usuario</button>
+            <div id="super-users-list" class="admin-list"></div>
+        </section>
+    </main>
+
+    <!-- FLOTANTE DEL CARRITO -->
+    <div id="cart-float" class="cart-float">
+        <div class="cart-info">
+            <span id="cart-count">0</span> productos - <span id="cart-total">$0.00</span>
+        </div>
+        <button class="btn-checkout" onclick="openCheckoutModal()">Ver Pedido</button>
+    </div>
+
+    <!-- MODAL CHECKOUT -->
+    <div id="modal-checkout" class="modal">
+        <div class="modal-content">
+            <h3>Resumen del Pedido</h3>
+            
+            <div class="input-group">
+                <label>Tipo de Entrega</label>
+                <select id="order-type">
+                    <option value="comer_aqui">🍽️ Comer Aquí</option>
+                    <option value="llevar_retiro">🥡 Para Llevar (Retiro)</option>
+                    <option value="llevar_delivery">🛵 Delivery</option>
+                </select>
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+                <label>Datos del Cliente</label>
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <input type="text" id="cust-cedula" placeholder="Cédula">
+                    <button class="btn-small" onclick="searchCustomerByCedula()">🔍</button>
+                </div>
+                <input type="text" id="cust-name" placeholder="Nombre y Apellido" style="margin-bottom: 0.5rem;">
+                <input type="text" id="cust-phone" placeholder="Teléfono (WhatsApp)">
+            </div>
+
+            <div id="checkout-items" style="max-height: 200px; overflow-y: auto; margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;"></div>
+            
+            <textarea id="order-observations" placeholder="Observaciones (ej: sin cebolla, poco picante...)"></textarea>
+            
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('modal-checkout')">Cerrar</button>
+                <button class="btn-confirm" id="btn-confirm-order" onclick="confirmOrder()">Confirmar Pedido</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EXTRAS (Ingredientes) -->
+    <div id="modal-extras" class="modal">
+        <div class="modal-content">
+            <h3>Añadir Extras</h3>
+            <div id="extras-list"></div>
+            <div class="modal-actions">
+                <button class="btn-confirm" onclick="closeModal('modal-extras')">Listo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PRODUCTO (Admin) -->
+    <div id="modal-product" class="modal">
+        <div class="modal-content">
+            <h3 id="product-modal-title">Producto</h3>
+            <input type="hidden" id="edit-product-id">
+            <div class="input-group"><label>Nombre</label><input type="text" id="prod-name"></div>
+            <div class="input-group"><label>Descripción</label><input type="text" id="prod-desc"></div>
+            <div class="input-group"><label>Precio USD</label><input type="number" step="0.01" id="prod-price"></div>
+            <div class="input-group"><label>Categoría</label><input type="text" id="prod-cat"></div>
+            <div class="input-group"><label>URL Imagen</label><input type="text" id="prod-img"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('modal-product')">Cancelar</button>
+                <button class="btn-confirm" onclick="saveProduct()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL USUARIO (Super Admin) -->
+    <div id="modal-user" class="modal">
+        <div class="modal-content">
+            <h3>Usuario</h3>
+            <input type="hidden" id="edit-user-id">
+            <div class="input-group">
+                <label>Cédula</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="user-cedula">
+                    <button class="btn-small" onclick="searchUserByCedula()">🔍</button>
+                </div>
+            </div>
+            <div class="input-group"><label>Nombre y Apellido</label><input type="text" id="user-name"></div>
+            <div class="input-group"><label>Teléfono</label><input type="text" id="user-phone"></div>
+            <div class="input-group"><label>Contraseña</label><input type="password" id="user-pass"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('modal-user')">Cancelar</button>
+                <button class="btn-confirm" onclick="saveUser()">Guardar</button>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
