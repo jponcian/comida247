@@ -4,114 +4,134 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Comida247</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            margin: 0;
-            font-family: 'Outfit', sans-serif;
-        }
-        .login-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            padding: 2.5rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            width: 100%;
-            max-width: 400px;
-            border: 1px solid rgba(255,255,255,0.1);
-            text-align: center;
-        }
-        h1 { color: #fff; margin-bottom: 2rem; font-weight: 600; }
-        .input-group { margin-bottom: 1.5rem; text-align: left; }
-        label { display: block; color: #a0a0a0; margin-bottom: 0.5rem; font-size: 0.9rem; }
-        input, select {
-            width: 100%;
-            padding: 0.8rem;
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(0,0,0,0.2);
-            color: white;
-            font-size: 1rem;
-            box-sizing: border-box;
-        }
-        input:focus { outline: none; border-color: #e94560; }
-        button {
-            width: 100%;
-            padding: 1rem;
-            border: none;
-            border-radius: 10px;
-            background: #e94560;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 1rem;
-        }
-        button:hover { background: #ff4d6d; transform: translateY(-2px); }
-        #business-select-container { display: none; margin-top: 1.5rem; }
-    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
-    <div class="login-card" id="login-form">
-        <h1>Comida247</h1>
-        <div class="input-group">
-            <label>Cédula</label>
-            <input type="text" id="cedula" placeholder="12345678">
-        </div>
-        <div class="input-group">
-            <label>Contraseña</label>
-            <input type="password" id="password" placeholder="••••••••">
-        </div>
-        <button onclick="handleLogin()">Entrar</button>
-        <p id="error" style="color: #ff4d6d; margin-top: 1rem; font-size: 0.9rem;"></p>
+<body class="login-page">
+    <!-- Fondo Animado -->
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
     </div>
 
-    <div class="login-card" id="business-form" style="display: none;">
-        <h1>Seleccionar Negocio</h1>
-        <div class="input-group">
-            <label>Negocio disponible</label>
-            <select id="business-id"></select>
+    <main class="login-container">
+        <!-- Formulario de Login -->
+        <div class="login-card" id="login-form">
+            <div class="brand">
+                <div class="logo-icon">
+                    <i class="fas fa-utensils"></i>
+                </div>
+                <h1>Comida247</h1>
+                <p>Alimentando tus sueños</p>
+            </div>
+
+            <div class="input-group">
+                <label for="cedula">Cédula</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-id-card"></i>
+                    <input type="text" id="cedula" placeholder="12345678" autocomplete="username">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="password">Contraseña</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+                </div>
+            </div>
+
+            <button class="btn-login" onclick="handleLogin()">
+                <span>Entrar</span>
+                <i class="fas fa-arrow-right"></i>
+            </button>
+            
+            <p id="error" class="error-msg"></p>
         </div>
-        <button onclick="handleSelectBusiness()">Continuar</button>
-    </div>
+
+        <!-- Selección de Negocio -->
+        <div class="login-card" id="business-form" style="display: none;">
+            <div class="brand">
+                <div class="logo-icon">
+                    <i class="fas fa-store"></i>
+                </div>
+                <h1>Bienvenido</h1>
+                <p>Selecciona un negocio para continuar</p>
+            </div>
+
+            <div class="input-group">
+                <label for="business-id">Negocio disponible</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-shop"></i>
+                    <select id="business-id"></select>
+                </div>
+            </div>
+
+            <button class="btn-login" onclick="handleSelectBusiness()">
+                <span>Continuar</span>
+                <i class="fas fa-check"></i>
+            </button>
+        </div>
+    </main>
 
     <script>
         async function handleLogin() {
             const cedula = document.getElementById('cedula').value;
             const password = document.getElementById('password').value;
             const error = document.getElementById('error');
+            const btn = document.querySelector('#login-form .btn-login');
+            const icon = btn.querySelector('i');
 
-            const res = await fetch('auth.php?action=login', {
-                method: 'POST',
-                body: JSON.stringify({ cedula, password })
-            });
-            const data = await res.json();
+            if (!cedula || !password) {
+                error.innerText = "Por favor, completa todos los campos.";
+                return;
+            }
 
-            if (data.success) {
-                if (data.businesses.length === 0) {
-                    error.innerText = "No tienes negocios asignados.";
-                    return;
+            btn.classList.add('loading');
+            icon.className = 'fas fa-circle-notch fa-spin';
+            
+            try {
+                const res = await fetch('auth.php?action=login', {
+                    method: 'POST',
+                    body: JSON.stringify({ cedula, password })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    if (data.businesses.length === 0) {
+                        error.innerText = "No tienes negocios asignados.";
+                        btn.classList.remove('loading');
+                        icon.className = 'fas fa-arrow-right';
+                        return;
+                    }
+                    
+                    const select = document.getElementById('business-id');
+                    select.innerHTML = data.businesses.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+                    
+                    document.getElementById('login-form').style.display = 'none';
+                    document.getElementById('business-form').style.display = 'block';
+                } else {
+                    error.innerText = data.error || "Error de autenticación";
+                    btn.classList.remove('loading');
+                    icon.className = 'fas fa-arrow-right';
                 }
-                
-                // Si solo tiene uno, seleccionarlo automáticamente (opcional, mejor dejar elegir)
-                const select = document.getElementById('business-id');
-                select.innerHTML = data.businesses.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-                
-                document.getElementById('login-form').style.display = 'none';
-                document.getElementById('business-form').style.display = 'block';
-            } else {
-                error.innerText = data.error;
+            } catch (e) {
+                error.innerText = "Error de conexión con el servidor.";
+                btn.classList.remove('loading');
+                icon.className = 'fas fa-arrow-right';
             }
         }
 
         async function handleSelectBusiness() {
             const business_id = document.getElementById('business-id').value;
+            const btn = document.querySelector('#business-form .btn-login');
+            const icon = btn.querySelector('i');
+            
+            btn.classList.add('loading');
+            icon.className = 'fas fa-circle-notch fa-spin';
+
             const res = await fetch('auth.php?action=select_business', {
                 method: 'POST',
                 body: JSON.stringify({ business_id })
@@ -119,6 +139,9 @@
             const data = await res.json();
             if (data.success) {
                 window.location.href = 'app.html';
+            } else {
+                btn.classList.remove('loading');
+                icon.className = 'fas fa-check';
             }
         }
 
@@ -129,3 +152,4 @@
     </script>
 </body>
 </html>
+

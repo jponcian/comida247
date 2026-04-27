@@ -13,12 +13,12 @@
         <div class="nav-brand">Comida247</div>
         <div class="nav-links">
             <button id="nav-pedidos" class="active" onclick="showSection('pedidos')">Órdenes</button>
-            <button id="nav-cocina" onclick="showSection('cocina')">Cocina</button>
-            <button id="nav-caja" onclick="showSection('caja')">Caja</button>
+            <button id="nav-cocina" onclick="showSection('cocina')">Cocina <span id="badge-kitchen" class="nav-badge" style="display: none;">0</span></button>
+            <button id="nav-caja" onclick="showSection('caja')">Caja <span id="badge-caja" class="nav-badge" style="display: none;">0</span></button>
+            <button id="nav-historial" style="display:none" onclick="showSection('historial')">Historial</button>
             <button id="nav-admin" style="display:none" onclick="showSection('admin')">Admin</button>
             <button id="nav-super" style="display:none" onclick="showSection('super')">Super</button>
             <button id="nav-salir" onclick="logout()">Salir</button>
-            <button id="btn-standby-list" class="btn-standby-float" onclick="openStandbyModal()" style="display: none;"></button>
         </div>
 
     </nav>
@@ -38,6 +38,32 @@
         <section id="caja" class="view-section">
             <div id="payment-container" class="grid-container"></div>
         </section>
+        
+        <!-- SECCIÓN HISTORIAL -->
+        <section id="historial" class="view-section">
+            <div class="section-header" style="flex-wrap: wrap; gap: 1rem; margin-bottom: 2.5rem;">
+                <h2>Historial de Ventas</h2>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; flex: 1; justify-content: flex-start;">
+                    <input type="date" id="history-date" onchange="loadHistory()" style="width: auto;">
+                    <select id="history-status" onchange="loadHistory()" style="width: auto;">
+                        <option value="">🔍 Todos los Estados</option>
+                        <option value="pendiente">🟠 Pendiente</option>
+                        <option value="preparando">🟡 Preparando</option>
+                        <option value="listo">🟢 Listo</option>
+                        <option value="cobrado">⚪ Cobrado</option>
+                    </select>
+                    <select id="history-type" onchange="loadHistory()" style="width: auto;">
+                        <option value="">📋 Todos los Tipos</option>
+                        <option value="comer_aqui">🍽️ Comer Aquí</option>
+                        <option value="llevar_retiro">🥡 Retiro</option>
+                        <option value="llevar_delivery">🛵 Delivery</option>
+                    </select>
+                    <input type="text" id="history-search" placeholder="Buscar cliente o ID..." oninput="loadHistory()" style="width: auto; min-width: 200px;">
+                </div>
+            </div>
+            <div id="history-container" class="grid-container"></div>
+            <div id="history-summary" style="margin-top: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"></div>
+        </section>
 
         <!-- SECCIÓN ADMIN (Productos e Ingredientes) -->
         <section id="admin" class="view-section">
@@ -48,6 +74,10 @@
             <h2 style="margin-top: 2rem;">Gestión de Ingredientes</h2>
             <button class="btn-add" onclick="openIngredientModal()">+ Nuevo Ingrediente</button>
             <div id="admin-ingredients-list" class="admin-list"></div>
+
+            <h2 style="margin-top: 2rem;">Gestión de Mesas</h2>
+            <button class="btn-add" onclick="openTableModal()">+ Nueva Mesa</button>
+            <div id="admin-tables-list" class="admin-list"></div>
         </section>
 
         <!-- SECCIÓN SUPER ADMIN -->
@@ -77,11 +107,16 @@
             
             <div class="input-group">
                 <label>Tipo de Entrega</label>
-                <select id="order-type">
+                <select id="order-type" onchange="toggleTableInput()">
                     <option value="comer_aqui">🍽️ Comer Aquí</option>
                     <option value="llevar_retiro">🥡 Para Llevar (Retiro)</option>
                     <option value="llevar_delivery">🛵 Delivery</option>
                 </select>
+            </div>
+
+            <div class="input-group" id="table-input-group" style="margin-top: 1rem;">
+                <label>Seleccionar Mesa</label>
+                <select id="order-table"></select>
             </div>
 
             <div class="input-group" style="margin-top: 1rem;">
@@ -95,9 +130,15 @@
                 <input type="text" id="cust-phone" placeholder="Teléfono (WhatsApp)">
             </div>
 
-            <div id="checkout-items" style="max-height: 200px; overflow-y: auto; margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;"></div>
+            <div id="checkout-items" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;"></div>
             
-            <textarea id="order-observations" placeholder="Observaciones Generales (ej: traer servilletas, el timbre no suena...)"></textarea>
+            <div id="obs-container" style="display: none; margin-top: 0.5rem;">
+                <textarea id="order-observations" placeholder="Observaciones Generales..."></textarea>
+            </div>
+            
+            <button id="btn-add-obs" class="btn-small" style="margin-top: 0.5rem; width: 100%;" onclick="toggleGeneralObservations()">
+                📝 Agregar observación general
+            </button>
             
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal('modal-checkout')">❌ Cerrar</button>
@@ -158,7 +199,6 @@
             </div>
         </div>
     </div>
-    <script src="app.js"></script>
     <!-- MODAL STANDBY -->
     <div id="modal-standby" class="modal">
         <div class="modal-content">
@@ -170,5 +210,97 @@
         </div>
     </div>
 
+    <!-- MODAL MESA (Admin) -->
+    <!-- MODAL PAGO -->
+    <div id="modal-payment" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Procesar Pago</h3>
+                <button class="btn-close" onclick="closeModal('modal-payment')">×</button>
+            </div>
+            
+            <div id="payment-totals" class="payment-summary" style="margin-bottom: 1.5rem; text-align: center;">
+                <div style="font-size: 0.9rem; color: var(--text-muted);">Total a Pagar</div>
+                <div id="pay-total-usd" style="font-size: 2rem; font-weight: 800; color: var(--secondary);">$0.00</div>
+                <div id="pay-total-bs" style="font-size: 1.2rem; color: var(--primary); font-weight: 600;">Bs 0.00</div>
+            </div>
+
+            <div class="input-group">
+                <label>Añadir Pago</label>
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <input type="text" id="pay-amount" placeholder="Monto" oninput="formatMoneyInput(this)" style="flex: 2;">
+                    <select id="pay-currency" style="flex: 1;" onchange="updateDefaultPaymentAmount()">
+                        <option value="VES" selected>Bs VES</option>
+                        <option value="USD">$ USD</option>
+                    </select>
+                </div>
+                <select id="pay-method">
+                    <option value="punto">💳 Punto de Venta</option>
+                    <option value="pago_movil">📱 Pago Móvil</option>
+                    <option value="efectivo">💵 Efectivo</option>
+                    <option value="divisas">💵 Divisas (USD)</option>
+                </select>
+                <button class="btn-add" onclick="addPaymentRow()" style="margin-top: 0.5rem; width: 100%;">+ Añadir Pago</button>
+            </div>
+
+            <div id="payments-list" style="margin-top: 1.5rem; max-height: 150px; overflow-y: auto;">
+                <!-- Lista de pagos añadidos -->
+            </div>
+
+            <div id="payment-balance" style="margin-top: 1.5rem; padding: 1rem; border-radius: 12px; background: rgba(255,255,255,0.03); text-align: right;">
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Restante</div>
+                <div id="pay-remaining" style="font-size: 1.2rem; font-weight: 800;">$0.00</div>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 1.5rem;">
+                <button class="btn-cancel" onclick="closeModal('modal-payment')">Cerrar</button>
+                <button id="btn-finish-payment" class="btn-pay" onclick="finishPaymentProcess()" disabled>Finalizar Pago</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL MESA (Admin) -->
+    <div id="modal-table" class="modal">
+        <div class="modal-content">
+            <h3 id="table-modal-title">Mesa</h3>
+            <input type="hidden" id="edit-table-id">
+            <div class="input-group">
+                <label>Nombre / Identificador</label>
+                <input type="text" id="table-name" placeholder="Ej: Mesa 1, VIP, Terraza">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('modal-table')">Cancelar</button>
+                <button class="btn-confirm" onclick="saveTable()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NEGOCIO (Super Admin) -->
+    <div id="modal-business" class="modal">
+        <div class="modal-content">
+            <h3>Negocio</h3>
+            <input type="hidden" id="edit-business-id">
+            <div class="input-group">
+                <label>Nombre del Negocio</label>
+                <input type="text" id="bus-name">
+            </div>
+            <div class="input-group">
+                <label>Estado</label>
+                <select id="bus-active">
+                    <option value="1">Activo</option>
+                    <option value="0">Inactivo</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('modal-business')">Cancelar</button>
+                <button class="btn-confirm" onclick="saveBusiness()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTÓN FLOTANTE PEDIDOS EN ESPERA -->
+    <button id="btn-standby-list" class="btn-standby-float" onclick="openStandbyModal()" style="display: none;"></button>
+
+    <script src="app.js"></script>
 </body>
 </html>

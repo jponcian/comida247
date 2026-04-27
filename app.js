@@ -42,6 +42,7 @@ async function checkAuth() {
 function setupUIByRole(auth) {
     if (userRole === 'administrador' || auth.user.is_super_admin) {
         document.getElementById('nav-admin').style.display = 'block';
+        document.getElementById('nav-historial').style.display = 'block';
     }
     if (auth.user.is_super_admin) {
         document.getElementById('nav-super').style.display = 'block';
@@ -164,6 +165,46 @@ function openCheckoutModal() {
     `).join('');
     
     document.getElementById('modal-checkout').style.display = 'flex';
+    toggleTableInput(); // Asegurar estado correcto del input de mesa
+    
+    // Ocultar observaciones si están vacías
+    const obs = document.getElementById('order-observations').value;
+    if (!obs) {
+        document.getElementById('obs-container').style.display = 'none';
+        document.getElementById('btn-add-obs').style.display = 'block';
+    } else {
+        document.getElementById('obs-container').style.display = 'block';
+        document.getElementById('btn-add-obs').style.display = 'none';
+    }
+}
+
+function toggleGeneralObservations() {
+    const container = document.getElementById('obs-container');
+    const btn = document.getElementById('btn-add-obs');
+    container.style.display = 'block';
+    btn.style.display = 'none';
+    container.querySelector('textarea').focus();
+}
+
+async function toggleTableInput() {
+    const type = document.getElementById('order-type').value;
+    const group = document.getElementById('table-input-group');
+    if (type === 'comer_aqui') {
+        group.style.display = 'block';
+        
+        // Cargar mesas dinámicamente
+        const res = await fetch('api.php?action=get_tables');
+        const tables = await res.json();
+        const select = document.getElementById('order-table');
+        if (tables.length > 0) {
+            select.innerHTML = tables.map(t => `<option value="${t.name}">📍 ${t.name}</option>`).join('');
+        } else {
+            select.innerHTML = `<option value="">⚠️ No hay mesas registradas</option>`;
+        }
+    } else {
+        group.style.display = 'none';
+        document.getElementById('order-table').value = '';
+    }
 }
 
 function toggleNote(index) {
@@ -223,11 +264,23 @@ async function confirmOrder() {
     
     const obs = document.getElementById('order-observations').value;
     const type = document.getElementById('order-type').value;
+    const table = document.getElementById('order-table').value;
     const cust_name = document.getElementById('cust-name').value || 'Cliente Genérico';
     const cust_phone = document.getElementById('cust-phone').value;
     const cust_cedula = document.getElementById('cust-cedula').value;
     const total = calculateTotal();
     
+    if (type === 'comer_aqui' && !table) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Mesa requerida',
+            text: 'Por favor, indica el número de mesa para comer aquí.',
+            background: 'var(--bg)',
+            color: 'var(--text)'
+        });
+        return;
+    }
+
     if (cart.length === 0) {
         alert("El carrito está vacío");
         return;
@@ -250,6 +303,7 @@ async function confirmOrder() {
             customer_name: cust_name,
             customer_phone: cust_phone,
             order_type: type,
+            table_number: table,
             total_usd: total,
             observations: obs,
             items: cart.map(i => ({
@@ -280,7 +334,7 @@ async function confirmOrder() {
             });
             cart = [];
             currentEditingOrderId = null;
-            document.getElementById('order-observations').value = '';
+            resetCheckoutForm();
             updateCartUI();
             closeModal('modal-checkout');
             if (currentSection === 'cocina') loadKitchenOrders();
@@ -313,6 +367,7 @@ function parkOrder() {
             phone: document.getElementById('cust-phone').value,
             cedula: document.getElementById('cust-cedula').value,
             type: document.getElementById('order-type').value,
+            table_number: document.getElementById('order-table').value,
             observations: document.getElementById('order-observations').value
         },
         timestamp: new RegExp().toString(), // Using a hack to avoid complex Date formatting for now or just Date.now()
@@ -396,6 +451,7 @@ async function resumeOrder(index) {
     document.getElementById('cust-phone').value = order.customer.phone;
     document.getElementById('cust-cedula').value = order.customer.cedula;
     document.getElementById('order-type').value = order.customer.type;
+    document.getElementById('order-table').value = order.customer.table_number || '';
     document.getElementById('order-observations').value = order.customer.observations;
     
     standbyOrders.splice(index, 1);
@@ -443,30 +499,44 @@ async function loadKitchenOrders() {
         lastKnownOrderId = maxId;
     }
 
+    updateNavBadges(orders);
+
     const container = document.getElementById('kitchen-container');
-    container.innerHTML = kitchenOrders.map(o => `
-        <div class="order-card ${o.status === 'preparando' ? 'preparing' : ''}">
-            <div class="order-header">
-                <strong>#${o.id} - ${o.customer_name}</strong>
-                <span class="badge ${o.status}">${o.status.toUpperCase()}</span>
-            </div>
-            <div class="order-details">
-                ${o.items.map(i => `
-                    <div style="margin-bottom: 0.3rem;">
-                        <strong>• ${i.name}</strong> 
-                        ${i.ingredients.length ? `<span class="extras-preview">(${i.ingredients.map(ing => ing.name).join(', ')})</span>` : ''}
-                        ${i.observations ? `<div style="margin-left: 1rem; font-size: 0.9rem; color: var(--accent); font-style: italic;">↳ ${i.observations}</div>` : ''}
+    container.innerHTML = kitchenOrders.map(o => {
+        const groupedItems = getGroupedItems(o.items);
+
+        const isPaid = parseInt(o.is_paid) === 1;
+        return `
+            <div class="order-card ${o.status === 'preparando' ? 'preparing' : ''} ${o.status === 'listo' ? 'ready' : ''}">
+                <div class="order-header">
+                    <div>
+                        <strong>#${o.id} - ${o.customer_name}</strong>
+                        ${o.table_number ? `<div style="font-size: 0.9rem; color: var(--primary);">📍 Mesa: ${o.table_number}</div>` : ''}
                     </div>
-                `).join('')}
+                    <div style="display: flex; gap: 0.3rem;">
+                        ${isPaid ? '<span class="status-badge" style="background: var(--success); font-size: 0.7rem;">PAGADO</span>' : ''}
+                        <span class="badge ${o.status}">${o.status.toUpperCase()}</span>
+                    </div>
+                </div>
+                <div class="order-details">
+                    ${groupedItems.map(i => `
+                        <div style="margin-bottom: 0.3rem;">
+                            <strong>${i.quantity > 1 ? `<span style="color: var(--secondary); font-size: 1.1rem;">${i.quantity} x </span>` : '• '}${i.name}</strong> 
+                            ${i.ingredients.length ? `<span class="extras-preview">(${i.ingredients.map(ing => ing.name).join(', ')})</span>` : ''}
+                            ${i.observations ? `<div style="margin-left: 1rem; font-size: 0.9rem; color: var(--accent); font-style: italic;">↳ ${i.observations}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+                ${o.observations ? `<p class="obs">Nota: ${o.observations}</p>` : ''}
+                <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                    <button class="btn-status" style="flex: 2;" onclick="updateOrderStatus(${o.id}, '${o.status === 'pendiente' ? 'preparando' : 'listo'}')">
+                        ${o.status === 'pendiente' ? '👩‍🍳 Empezar' : '✅ Listo'}
+                    </button>
+                    <button class="btn-small" style="flex: 1;" onclick="editExistingOrder(${JSON.stringify(o).replace(/"/g, '&quot;')})">✏️ Editar</button>
+                </div>
             </div>
-            ${o.observations ? `<p class="obs">Nota: ${o.observations}</p>` : ''}
-            <div style="margin-top: 1rem;">
-                <button class="btn-status" onclick="updateOrderStatus(${o.id}, '${o.status === 'pendiente' ? 'preparando' : 'listo'}')">
-                    ${o.status === 'pendiente' ? '👩‍🍳 Empezar' : '✅ Listo'}
-                </button>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 async function updateOrderStatus(id, status) {
@@ -517,33 +587,58 @@ async function loadPaymentOrders() {
     const orders = await res.json();
     const container = document.getElementById('payment-container');
     
-    // En caja mostramos todo lo que no esté cobrado
-    container.innerHTML = orders.map(o => {
+    // Filtrar: si está listo y pagado, no mostrar en caja
+    const activeOrders = orders.filter(o => !(o.status === 'listo' && parseInt(o.is_paid) === 1) && o.status !== 'cobrado');
+    
+    // Actualizar Badge Nav
+    updateNavBadges(orders);
+
+    if (activeOrders.length === 0) {
+        container.innerHTML = '<div class="empty-state">No hay pedidos pendientes de cobro</div>';
+        return;
+    }
+
+    container.innerHTML = activeOrders.map(o => {
+        const isPaid = parseInt(o.is_paid) === 1;
         let actionBtn = '';
         if (o.status === 'listo') {
             if (o.order_type === 'llevar_delivery') {
-                actionBtn = `<button class="btn-small btn-primary" onclick="updateOrderStatus(${o.id}, 'despachado')">🛵 Despachar</button>`;
+                actionBtn = `<button class="btn-small" style="background: var(--primary); color: white;" onclick="updateOrderStatus(${o.id}, 'despachado')">🛵 Despachar</button>`;
             } else if (o.order_type === 'llevar_retiro') {
-                actionBtn = `<button class="btn-small btn-primary" onclick="updateOrderStatus(${o.id}, 'despachado')">🥡 Entregar</button>`;
+                actionBtn = `<button class="btn-small" style="background: var(--primary); color: white;" onclick="updateOrderStatus(${o.id}, 'despachado')">🥡 Entregar</button>`;
             }
         }
 
+        const groupedItems = getGroupedItems(o.items);
+        const itemsHtml = groupedItems.map(i => `
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 2px;">
+                • ${i.quantity}x ${i.name}
+            </div>
+        `).join('');
+
         return `
-            <div class="order-card">
+            <div class="order-card ${o.status === 'listo' ? 'ready-payment' : ''}">
                 <div class="order-header">
                     <strong>#${o.id} - ${o.customer_name}</strong>
-                    <span class="badge ${o.status}">${o.status.toUpperCase()}</span>
+                    <div style="display: flex; gap: 0.3rem;">
+                        ${isPaid ? '<span class="status-badge" style="background: var(--success); font-size: 0.7rem; padding: 2px 6px; border-radius: 6px; color: white;">PAGADO</span>' : ''}
+                        <span class="badge ${o.status}">${o.status.toUpperCase()}</span>
+                    </div>
                 </div>
                 <div class="order-details">
-                    <div style="margin-bottom:0.5rem">Tipo: <strong>${formatOrderType(o.order_type)}</strong></div>
+                    <div style="margin-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
+                        ${itemsHtml}
+                    </div>
+                    <div style="margin-bottom:0.5rem">Tipo: <strong>${formatOrderType(o.order_type)}</strong> ${o.table_number ? `(Mesa: ${o.table_number})` : ''}</div>
                     <div style="font-size: 1.5rem; color: var(--secondary); font-weight: 800;">
                         Total: $${parseFloat(o.total_usd).toFixed(2)}
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem;">
-                    <button class="btn-confirm" onclick="processPayment(${o.id}, '${o.order_type}')">💵 Pagar</button>
-                    <button class="btn-small" onclick="editExistingOrder(${JSON.stringify(o).replace(/"/g, '&quot;')})">✏️ Editar</button>
-                    ${actionBtn}
+                    <button class="btn-pay" ${isPaid ? 'disabled style="opacity: 0.5; background: #333;"' : ''} onclick="processPayment(${o.id}, '${o.order_type}')">
+                        ${isPaid ? '✅ Pagado' : '💵 Pagar'}
+                    </button>
+                    ${actionBtn || `<button class="btn-small" onclick="editExistingOrder(${JSON.stringify(o).replace(/"/g, '&quot;')})">✏️ Editar</button>`}
                 </div>
             </div>
         `;
@@ -555,40 +650,166 @@ function formatOrderType(type) {
     return types[type] || type;
 }
 
+function getGroupedItems(items) {
+    const grouped = [];
+    items.forEach(item => {
+        const itemKey = JSON.stringify({
+            id: item.product_id,
+            obs: item.observations,
+            extras: item.ingredients.map(ing => ing.ingredient_id).sort()
+        });
+        
+        const existing = grouped.find(gi => gi.key === itemKey);
+        if (existing) {
+            existing.quantity += parseInt(item.quantity || 1);
+        } else {
+            grouped.push({
+                key: itemKey,
+                name: item.name,
+                quantity: parseInt(item.quantity || 1),
+                ingredients: item.ingredients,
+                observations: item.observations
+            });
+        }
+    });
+    return grouped;
+}
+
+let currentPaymentOrderId = null;
+let currentPaymentTotal = 0;
+let addedPayments = [];
+
 async function processPayment(id, type) {
-    const result = await Swal.fire({
-        title: 'Confirmar Pago',
-        text: `¿Deseas procesar el pago de la orden #${id}?`,
-        icon: 'info',
-        showCancelButton: true,
-        confirmButtonColor: 'var(--success)',
-        cancelButtonColor: 'var(--danger)',
-        confirmButtonText: 'Sí, Pagar',
-        cancelButtonText: 'Cancelar',
-        background: 'var(--bg)',
-        color: 'var(--text)'
+    const res = await fetch('api.php?action=get_orders');
+    const orders = await res.json();
+    const order = orders.find(o => o.id == id);
+    if (!order) return;
+
+    currentPaymentOrderId = id;
+    currentPaymentTotal = parseFloat(order.total_usd);
+    addedPayments = [];
+
+    document.getElementById('pay-total-usd').innerText = `$${currentPaymentTotal.toFixed(2)}`;
+    document.getElementById('pay-total-bs').innerText = `Bs ${(currentPaymentTotal * exchangeRate).toFixed(2)}`;
+    
+    // Valores por defecto solicitados
+    document.getElementById('pay-currency').value = 'VES';
+    document.getElementById('pay-method').value = 'punto';
+    updateDefaultPaymentAmount();
+
+    updatePaymentList();
+    document.getElementById('modal-payment').style.display = 'flex';
+}
+
+function updateDefaultPaymentAmount() {
+    const currency = document.getElementById('pay-currency').value;
+    const amountInput = document.getElementById('pay-amount');
+    
+    // Calcular lo que falta por pagar
+    const totalPaidUSD = addedPayments.reduce((s, p) => s + p.amountUSD, 0);
+    const remainingUSD = currentPaymentTotal - totalPaidUSD;
+    
+    if (currency === 'VES') {
+        amountInput.value = (remainingUSD * exchangeRate).toFixed(2);
+    } else {
+        amountInput.value = remainingUSD.toFixed(2);
+    }
+}
+
+function formatMoneyInput(input) {
+    let value = input.value.replace(/\D/g, '');
+    if (value === '') return;
+    
+    let floatValue = parseFloat(value) / 100;
+    input.value = floatValue.toFixed(2);
+}
+
+function addPaymentRow() {
+    const amountInput = document.getElementById('pay-amount');
+    const amount = parseFloat(amountInput.value);
+    const currency = document.getElementById('pay-currency').value;
+    const method = document.getElementById('pay-method').value;
+
+    if (!amount || amount <= 0) return;
+
+    const amountUSD = (currency === 'VES') ? amount / exchangeRate : amount;
+    
+    addedPayments.push({
+        amountOriginal: amount,
+        currency,
+        method,
+        amountUSD
     });
 
-    if (!result.isConfirmed) return;
-    
-    const newStatus = (type === 'comer_aqui') ? 'cobrado' : undefined;
-    
-    const res = await fetch('api.php?action=process_payment', {
-        method: 'POST',
-        body: JSON.stringify({ id, status: newStatus })
-    });
-    
-    if ((await res.json()).success) {
-        Swal.fire({
-            title: '¡Pagado!',
-            text: 'El pago ha sido registrado.',
-            icon: 'success',
-            timer: 1500,
-            showConfirmButton: false,
-            background: 'var(--bg)',
-            color: 'var(--text)'
+    amountInput.value = '';
+    updatePaymentList();
+    updateDefaultPaymentAmount();
+}
+
+function updatePaymentList() {
+    const container = document.getElementById('payments-list');
+    const balanceEl = document.getElementById('pay-remaining');
+    const finishBtn = document.getElementById('btn-finish-payment');
+
+    container.innerHTML = addedPayments.map((p, index) => `
+        <div class="standby-item" style="padding: 0.5rem; margin-bottom: 0.5rem; font-size: 0.9rem;">
+            <span>${getPaymentMethodEmoji(p.method)} ${p.amountOriginal.toFixed(2)} ${p.currency}</span>
+            <button class="btn-icon" onclick="removePaymentRow(${index})" style="color: var(--danger); font-size: 0.8rem;">🗑️</button>
+        </div>
+    `).join('');
+
+    const totalPaidUSD = addedPayments.reduce((s, p) => s + p.amountUSD, 0);
+    const remaining = currentPaymentTotal - totalPaidUSD;
+
+    balanceEl.innerText = `$${remaining.toFixed(2)}`;
+    balanceEl.style.color = remaining <= 0.01 ? 'var(--success)' : 'var(--danger)';
+
+    finishBtn.disabled = remaining > 0.01;
+}
+
+function removePaymentRow(index) {
+    addedPayments.splice(index, 1);
+    updatePaymentList();
+    updateDefaultPaymentAmount();
+}
+
+function getPaymentMethodEmoji(method) {
+    const icons = { efectivo: '💵', punto: '💳', pago_movil: '📱', divisas: '💵' };
+    return icons[method] || '💰';
+}
+
+async function finishPaymentProcess() {
+    const btn = document.getElementById('btn-finish-payment');
+    btn.disabled = true;
+    btn.innerHTML = '⌛ Procesando...';
+
+    try {
+        const res = await fetch('api.php?action=process_payment', {
+            method: 'POST',
+            body: JSON.stringify({ 
+                id: currentPaymentOrderId, 
+                payments: addedPayments 
+            })
         });
-        loadPaymentOrders();
+        
+        const result = await res.json();
+        if (result.success) {
+            Swal.fire({
+                title: '¡Pagado!',
+                text: 'La orden ha sido cancelada exitosamente.',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false,
+                background: 'var(--bg)',
+                color: 'var(--text)'
+            });
+            closeModal('modal-payment');
+            loadPaymentOrders();
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        btn.innerHTML = 'Finalizar Pago';
     }
 }
 
@@ -601,14 +822,27 @@ function editExistingOrder(order) {
         name: i.name,
         basePrice: parseFloat(i.price_at_time),
         quantity: i.quantity,
+        observations: i.observations || '',
         extras: i.ingredients.map(ing => ({ id: ing.ingredient_id, name: ing.name, price: ing.price_at_time }))
     }));
-    document.getElementById('order-observations').value = order.observations || '';
+    const obs = order.observations || '';
+    document.getElementById('order-observations').value = obs;
+    
+    if (obs) {
+        document.getElementById('obs-container').style.display = 'block';
+        document.getElementById('btn-add-obs').style.display = 'none';
+    } else {
+        document.getElementById('obs-container').style.display = 'none';
+        document.getElementById('btn-add-obs').style.display = 'block';
+    }
+
     document.getElementById('order-type').value = order.order_type || 'comer_aqui';
+    document.getElementById('order-table').value = order.table_number || '';
     document.getElementById('cust-name').value = order.customer_name || '';
     document.getElementById('cust-phone').value = order.customer_phone || '';
     document.getElementById('cust-cedula').value = order.customer_cedula || '';
     
+    toggleTableInput();
     updateCartUI();
     showSection('pedidos');
     openCheckoutModal();
@@ -669,27 +903,122 @@ function showSection(id) {
     if (id === 'pedidos') loadProducts();
     if (id === 'cocina') loadKitchenOrders();
     if (id === 'caja') loadPaymentOrders();
+    if (id === 'historial') {
+        document.getElementById('history-date').valueAsDate = new Date();
+        loadHistory();
+    }
+    if (id === 'admin') { loadProducts(); loadIngredients(); loadTablesAdmin(); }
     if (id === 'super') { loadBusinesses(); loadUsers(); }
 }
 
+async function loadHistory() {
+    const date = document.getElementById('history-date').value;
+    const status = document.getElementById('history-status').value;
+    const type = document.getElementById('history-type').value;
+    const search = document.getElementById('history-search').value;
+    
+    const res = await fetch(`api.php?action=get_history&date=${date}&status=${status}&type=${type}&search=${search}`);
+    const orders = await res.json();
+    
+    const container = document.getElementById('history-container');
+    const summary = document.getElementById('history-summary');
+    
+    let totalUSD = 0;
+    let count = orders.length;
+
+    container.innerHTML = orders.map(o => {
+        totalUSD += parseFloat(o.total_usd);
+        const isReady = o.status === 'listo' || o.status === 'cobrado' || o.status === 'despachado';
+        return `
+            <div class="order-card ${isReady ? 'ready' : (o.status === 'preparando' ? 'preparing' : '')}">
+                <div class="order-header">
+                    <strong>#${o.id} - ${o.customer_name}</strong>
+                    <span class="badge ${o.status}">${o.status.toUpperCase()}</span>
+                </div>
+                <div class="order-details">
+                    <div style="font-size: 0.85rem; margin-bottom: 0.5rem;">
+                        ${o.items.map(i => `• ${i.quantity}x ${i.name}`).join('<br>')}
+                    </div>
+                    <div style="font-weight: 800; color: var(--secondary);">Total: $${parseFloat(o.total_usd).toFixed(2)}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">${new Date(o.created_at).toLocaleTimeString()}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    summary.innerHTML = `
+        <div class="stat-card" style="background: var(--glass); padding: 1rem; border-radius: 15px; border: 1px solid var(--border);">
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Ventas Totales</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">$${totalUSD.toFixed(2)}</div>
+        </div>
+        <div class="stat-card" style="background: var(--glass); padding: 1rem; border-radius: 15px; border: 1px solid var(--border);">
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Cantidad de Pedidos</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: var(--secondary);">${count}</div>
+        </div>
+    `;
+}
+
+async function loadTablesAdmin() {
+    const res = await fetch('api.php?action=get_tables');
+    const tables = await res.json();
+    const container = document.getElementById('admin-tables-list');
+    container.innerHTML = tables.map(t => `
+        <div class="admin-item">
+            <span>${t.name}</span>
+            <button onclick="openTableModal(${JSON.stringify(t).replace(/"/g, '&quot;')})">Editar</button>
+        </div>
+    `).join('');
+}
+
+function openTableModal(table = null) {
+    document.getElementById('table-modal-title').innerText = table ? 'Editar Mesa' : 'Nueva Mesa';
+    document.getElementById('edit-table-id').value = table ? table.id : '';
+    document.getElementById('table-name').value = table ? table.name : '';
+    document.getElementById('modal-table').style.display = 'flex';
+}
+
+async function saveTable() {
+    const id = document.getElementById('edit-table-id').value;
+    const name = document.getElementById('table-name').value;
+    
+    if (!name) return;
+
+    await fetch('api.php?action=save_table', {
+        method: 'POST',
+        body: JSON.stringify({ id: id || undefined, name })
+    });
+    
+    closeModal('modal-table');
+    loadTablesAdmin();
+}
+
+let allBusinesses = [];
+let allUsers = [];
+
 async function loadBusinesses() {
     const res = await fetch('api.php?action=get_businesses');
-    const businesses = await res.json();
-    document.getElementById('super-business-list').innerHTML = businesses.map(b => `
+    allBusinesses = await res.json();
+    document.getElementById('super-business-list').innerHTML = allBusinesses.map(b => `
         <div class="admin-item">
-            <span>${b.name} ${!b.active ? '(Inactivo)' : ''}</span>
-            <button onclick="editBusiness(${JSON.stringify(b).replace(/"/g, '&quot;')})">Editar</button>
+            <span>${b.name} ${parseInt(b.active) === 0 ? '<span style="color:var(--danger)">(Inactivo)</span>' : ''}</span>
+            <div style="display: flex; gap: 0.5rem;">
+                <button onclick="editBusiness(${b.id})">Editar</button>
+                <button style="background: var(--danger-glass); color: var(--danger); border-color: var(--danger);" onclick="deleteBusiness(${b.id})">🗑️</button>
+            </div>
         </div>
     `).join('');
 }
 
 async function loadUsers() {
     const res = await fetch('api.php?action=get_users');
-    const users = await res.json();
-    document.getElementById('super-users-list').innerHTML = users.map(u => `
+    allUsers = await res.json();
+    document.getElementById('super-users-list').innerHTML = allUsers.map(u => `
         <div class="admin-item">
             <span>${u.name} (V-${u.cedula})</span>
-            <button onclick="editUser(${JSON.stringify(u).replace(/"/g, '&quot;')})">Editar</button>
+            <div style="display: flex; gap: 0.5rem;">
+                <button onclick="editUser(${u.id})">Editar</button>
+                <button style="background: var(--danger-glass); color: var(--danger); border-color: var(--danger);" onclick="deleteUser(${u.id})">🗑️</button>
+            </div>
         </div>
     `).join('');
 }
@@ -721,6 +1050,100 @@ async function saveUser() {
     });
     closeModal('modal-user');
     loadUsers();
+}
+
+function openBusinessModal(business = null) {
+    document.getElementById('edit-business-id').value = business ? business.id : '';
+    document.getElementById('bus-name').value = business ? business.name : '';
+    document.getElementById('bus-active').value = business ? business.active : '1';
+    document.getElementById('modal-business').style.display = 'flex';
+}
+
+async function saveBusiness() {
+    const data = {
+        id: document.getElementById('edit-business-id').value || undefined,
+        name: document.getElementById('bus-name').value,
+        active: document.getElementById('bus-active').value
+    };
+    
+    const res = await fetch('api.php?action=save_business', { method: 'POST', body: JSON.stringify(data) });
+    const result = await res.json();
+    
+    if (result.success) {
+        Swal.fire({
+            title: '¡Guardado!',
+            text: 'Negocio actualizado correctamente.',
+            icon: 'success',
+            background: 'var(--bg)',
+            color: 'var(--text)'
+        });
+        closeModal('modal-business');
+        loadBusinesses();
+    } else {
+        Swal.fire({ icon: 'error', title: 'Error', text: result.error || 'No se pudo guardar' });
+    }
+}
+
+function editBusiness(id) { 
+    const b = allBusinesses.find(x => x.id == id);
+    openBusinessModal(b); 
+}
+
+function editUser(id) { 
+    const u = allUsers.find(x => x.id == id);
+    openUserModal(u); 
+}
+
+async function deleteBusiness(id) {
+    const b = allBusinesses.find(x => x.id == id);
+    const result = await Swal.fire({
+        title: '¿Eliminar Negocio?',
+        text: `¿Estás seguro de eliminar "${b.name}"? Esta acción no se puede deshacer.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--danger)',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        background: 'var(--bg)',
+        color: 'var(--text)'
+    });
+
+    if (result.isConfirmed) {
+        const res = await fetch('api.php?action=delete_business', { method: 'POST', body: JSON.stringify({ id }) });
+        const resData = await res.json();
+        if (resData.success) {
+            Swal.fire({ title: '¡Eliminado!', icon: 'success' });
+            loadBusinesses();
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: resData.error || 'No se pudo eliminar' });
+        }
+    }
+}
+
+async function deleteUser(id) {
+    const u = allUsers.find(x => x.id == id);
+    const result = await Swal.fire({
+        title: '¿Eliminar Usuario?',
+        text: `¿Estás seguro de eliminar a "${u.name}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--danger)',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        background: 'var(--bg)',
+        color: 'var(--text)'
+    });
+
+    if (result.isConfirmed) {
+        const res = await fetch('api.php?action=delete_user', { method: 'POST', body: JSON.stringify({ id }) });
+        const resData = await res.json();
+        if (resData.success) {
+            Swal.fire({ title: '¡Eliminado!', icon: 'success' });
+            loadUsers();
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: resData.error || 'No se pudo eliminar' });
+        }
+    }
 }
 
 
@@ -834,3 +1257,4 @@ async function updateExchangeRate() {
 function closeModal(id) {
     document.getElementById(id).style.display = 'none';
 }
+function updateNavBadges(orders) { const kitchenCount = orders.filter(o => o.status === 'pendiente' || o.status === 'preparando').length; const cajaCount = orders.filter(o => !(o.status === 'listo' && parseInt(o.is_paid) === 1) && o.status !== 'cobrado' && o.status !== 'despachado').length; const bKitchen = document.getElementById('badge-kitchen'); const bCaja = document.getElementById('badge-caja'); if (bKitchen) { if (kitchenCount > 0) { bKitchen.innerText = kitchenCount; bKitchen.style.display = 'inline-block'; } else { bKitchen.style.display = 'none'; } } if (bCaja) { if (cajaCount > 0) { bCaja.innerText = cajaCount; bCaja.style.display = 'inline-block'; } else { bCaja.style.display = 'none'; } } }

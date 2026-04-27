@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS orders (
     customer_phone VARCHAR(20),
     customer_id INT NULL,
     order_type ENUM('comer_aqui', 'llevar_delivery', 'llevar_retiro') DEFAULT 'comer_aqui',
+    table_number VARCHAR(10) NULL,
     total_usd DECIMAL(10, 2) NOT NULL,
     observations TEXT,
     status ENUM('pendiente', 'preparando', 'listo', 'cobrado') DEFAULT 'pendiente',
@@ -95,6 +96,7 @@ CREATE TABLE order_items (
     product_id INT NOT NULL,
     quantity INT DEFAULT 1,
     price_at_time DECIMAL(10, 2) NOT NULL,
+    observations TEXT,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id)
 );
@@ -107,6 +109,16 @@ CREATE TABLE order_item_ingredients (
     PRIMARY KEY (order_item_id, ingredient_id),
     FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE,
     FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
+);
+
+-- 9. Tabla de Mesas
+CREATE TABLE IF NOT EXISTS tables (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    business_id INT NOT NULL,
+    name VARCHAR(50) NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
 );
 
 -- Datos iniciales para pruebas

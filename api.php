@@ -87,6 +87,26 @@ switch ($action) {
         echo json_encode(['success' => true]);
         break;
 
+    // --- MESAS ---
+    case 'get_tables':
+        $stmt = $pdo->prepare("SELECT * FROM tables WHERE business_id = ? AND active = 1 ORDER BY name");
+        $stmt->execute([$business_id]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        break;
+
+    case 'save_table':
+        if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (isset($data['id'])) {
+            $stmt = $pdo->prepare("UPDATE tables SET name=?, active=? WHERE id=? AND business_id=?");
+            $stmt->execute([$data['name'], $data['active'] ?? 1, $data['id'], $business_id]);
+        } else {
+            $stmt = $pdo->prepare("INSERT INTO tables (business_id, name) VALUES (?, ?)");
+            $stmt->execute([$business_id, $data['name']]);
+        }
+        echo json_encode(['success' => true]);
+        break;
+
     // --- PEDIDOS ---
     case 'get_orders':
         $stmt = $pdo->prepare("SELECT * FROM orders WHERE business_id = ? AND status != 'cobrado' ORDER BY created_at DESC");
@@ -109,19 +129,56 @@ switch ($action) {
         echo json_encode($orders);
         break;
 
+    case 'get_history':
+        if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
+        $date = $_GET['date'] ?? date('Y-m-d');
+        $status = $_GET['status'] ?? '';
+        $type = $_GET['type'] ?? '';
+        $search = $_GET['search'] ?? '';
+
+        $query = "SELECT * FROM orders WHERE business_id = ? AND DATE(created_at) = ?";
+        $params = [$business_id, $date];
+
+        if ($status) {
+            $query .= " AND status = ?";
+            $params[] = $status;
+        }
+        if ($type) {
+            $query .= " AND order_type = ?";
+            $params[] = $type;
+        }
+        if ($search) {
+            $query .= " AND (customer_name LIKE ? OR id LIKE ?)";
+            $params[] = "%$search%";
+            $params[] = "%$search%";
+        }
+
+        $query .= " ORDER BY created_at DESC";
+        
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+        $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($orders as &$order) {
+            $stmt = $pdo->prepare("SELECT oi.*, p.name FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?");
+            $stmt->execute([$order['id']]);
+            $order['items'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+        echo json_encode($orders);
+        break;
     case 'create_order':
     case 'update_order':
         $data = json_decode(file_get_contents('php://input'), true);
         $pdo->beginTransaction();
         try {
             if ($action === 'create_order') {
-                $stmt = $pdo->prepare("INSERT INTO orders (business_id, customer_name, customer_phone, order_type, total_usd, observations) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$business_id, $data['customer_name'], $data['customer_phone'], $data['order_type'], $data['total_usd'], $data['observations']]);
+                $stmt = $pdo->prepare("INSERT INTO orders (business_id, customer_name, customer_phone, order_type, table_number, total_usd, observations) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$business_id, $data['customer_name'], $data['customer_phone'], $data['order_type'], $data['table_number'] ?? null, $data['total_usd'], $data['observations']]);
                 $order_id = $pdo->lastInsertId();
             } else {
                 $order_id = $data['id'];
-                $stmt = $pdo->prepare("UPDATE orders SET customer_name=?, customer_phone=?, order_type=?, total_usd=?, observations=? WHERE id=? AND business_id=?");
-                $stmt->execute([$data['customer_name'], $data['customer_phone'], $data['order_type'], $data['total_usd'], $data['observations'], $order_id, $business_id]);
+                $stmt = $pdo->prepare("UPDATE orders SET customer_name=?, customer_phone=?, order_type=?, table_number=?, total_usd=?, observations=? WHERE id=? AND business_id=?");
+                $stmt->execute([$data['customer_name'], $data['customer_phone'], $data['order_type'], $data['table_number'] ?? null, $data['total_usd'], $data['observations'], $order_id, $business_id]);
                 // Limpiar items anteriores para recrearlos (más simple para editar)
                 $pdo->prepare("DELETE FROM order_items WHERE order_id = ?")->execute([$order_id]);
             }
@@ -146,6 +203,12 @@ switch ($action) {
             $pdo->rollBack();
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
+        break;
+    case 'process_payment':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $id = $data['id'];
+        $pdo->prepare("UPDATE orders SET is_paid = 1 WHERE id = ?")->execute([$id]);
+        echo json_encode(['success' => true]);
         break;
 
     case 'update_status':
@@ -230,6 +293,24 @@ switch ($action) {
             $stmt = $pdo->prepare("INSERT INTO users (name, cedula, phone, password) VALUES (?, ?, ?, ?)");
             $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $pass_hash]);
         }
+        echo json_encode(['success' => true]);
+        break;
+
+    case 'delete_business':
+        if (!$is_super) die(json_encode(['error' => 'Solo Super Admin']));
+        $data = json_decode(file_get_contents('php://input'), true);
+        $stmt = $pdo->prepare("DELETE FROM businesses WHERE id = ?");
+        $stmt->execute([$data['id']]);
+        echo json_encode(['success' => true]);
+        break;
+
+    case 'delete_user':
+        if (!$is_super) die(json_encode(['error' => 'Solo Super Admin']));
+        $data = json_decode(file_get_contents('php://input'), true);
+        // No permitir eliminarse a sí mismo
+        if ($data['id'] == $_SESSION['user_id']) die(json_encode(['error' => 'No puedes eliminarte a ti mismo']));
+        $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+        $stmt->execute([$data['id']]);
         echo json_encode(['success' => true]);
         break;
 
