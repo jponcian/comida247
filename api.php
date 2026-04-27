@@ -52,6 +52,27 @@ switch ($action) {
         $stmt->execute([$business_id]);
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         break;
+    
+    case 'update_status':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $stmt = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ? AND business_id = ?");
+        $stmt->execute([$data['status'], $data['id'], $business_id]);
+        echo json_encode(['success' => true]);
+        break;
+
+    case 'process_payment':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $id = $data['id'];
+        $status = $data['status'] ?? null;
+        
+        if ($status) {
+            $stmt = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ? AND business_id = ?");
+            $stmt->execute([$status, $id, $business_id]);
+        }
+        
+        // Aquí se podría registrar el pago en una tabla de transacciones en el futuro
+        echo json_encode(['success' => true]);
+        break;
 
     case 'save_ingredient':
         if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
@@ -83,6 +104,7 @@ switch ($action) {
                 $stmt->execute([$item['id']]);
                 $item['ingredients'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
             }
+
         }
         echo json_encode($orders);
         break;
@@ -93,23 +115,24 @@ switch ($action) {
         $pdo->beginTransaction();
         try {
             if ($action === 'create_order') {
-                $stmt = $pdo->prepare("INSERT INTO orders (business_id, customer_name, total_usd, observations) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$business_id, $data['customer_name'], $data['total_usd'], $data['observations']]);
+                $stmt = $pdo->prepare("INSERT INTO orders (business_id, customer_name, customer_phone, order_type, total_usd, observations) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$business_id, $data['customer_name'], $data['customer_phone'], $data['order_type'], $data['total_usd'], $data['observations']]);
                 $order_id = $pdo->lastInsertId();
             } else {
                 $order_id = $data['id'];
-                $stmt = $pdo->prepare("UPDATE orders SET customer_name=?, total_usd=?, observations=? WHERE id=? AND business_id=?");
-                $stmt->execute([$data['customer_name'], $data['total_usd'], $data['observations'], $order_id, $business_id]);
+                $stmt = $pdo->prepare("UPDATE orders SET customer_name=?, customer_phone=?, order_type=?, total_usd=?, observations=? WHERE id=? AND business_id=?");
+                $stmt->execute([$data['customer_name'], $data['customer_phone'], $data['order_type'], $data['total_usd'], $data['observations'], $order_id, $business_id]);
                 // Limpiar items anteriores para recrearlos (más simple para editar)
                 $pdo->prepare("DELETE FROM order_items WHERE order_id = ?")->execute([$order_id]);
             }
 
-            $stmt_item = $pdo->prepare("INSERT INTO order_items (order_id, product_id, quantity, price_at_time) VALUES (?, ?, ?, ?)");
+            $stmt_item = $pdo->prepare("INSERT INTO order_items (order_id, product_id, quantity, price_at_time, observations) VALUES (?, ?, ?, ?, ?)");
             $stmt_extra = $pdo->prepare("INSERT INTO order_item_ingredients (order_item_id, ingredient_id, price_at_time) VALUES (?, ?, ?)");
 
             foreach ($data['items'] as $item) {
-                $stmt_item->execute([$order_id, $item['id'], $item['quantity'] ?? 1, $item['price']]);
+                $stmt_item->execute([$order_id, $item['id'], $item['quantity'] ?? 1, $item['price'], $item['observations'] ?? '']);
                 $item_id = $pdo->lastInsertId();
+
                 
                 if (!empty($item['extras'])) {
                     foreach ($item['extras'] as $extra) {
@@ -117,8 +140,6 @@ switch ($action) {
                     }
                 }
             }
-            $pdo->commit();
-
             $pdo->commit();
             echo json_encode(['success' => true, 'order_id' => $order_id]);
         } catch (Exception $e) {
@@ -213,8 +234,11 @@ switch ($action) {
         break;
 
     case 'search_cedula':
-        $cedula = $_GET['cedula'] ?? '';
-        if (!$cedula) exit;
+        $raw_cedula = $_GET['cedula'] ?? '';
+        if (!$raw_cedula) exit;
+        
+        // Normalizar cédula a solo números para consistencia
+        $cedula = preg_replace('/\D/', '', $raw_cedula);
         
         // Primero buscar en base de datos local de clientes
         $stmt = $pdo->prepare("SELECT * FROM customers WHERE business_id = ? AND cedula = ?");
@@ -224,16 +248,23 @@ switch ($action) {
         if ($local) {
             echo json_encode($local);
         } else {
-            // Si no existe, buscar en API externa
-            $res = fetchCedulaData($cedula);
-            if ($res && isset($res['p_nombre'])) {
-                $fullName = "{$res['p_nombre']} " . ($res['s_nombre'] ?? '') . " {$res['p_apellido']} " . ($res['s_apellido'] ?? '');
+            // Si no existe, buscar en API externa (pasamos la original por si trae letra)
+            $res = fetchCedulaData($raw_cedula);
+            if ($res && (isset($res['p_nombre']) || isset($res['primer_nombre']) || isset($res['nombre']))) {
+                // Mapear campos según los nombres detectados en quiniela y comunes
+                $firstName = $res['primer_nombre'] ?? $res['nombre'] ?? $res['nombres'] ?? $res['p_nombre'] ?? '';
+                $middleName = $res['segundo_nombre'] ?? $res['s_nombre'] ?? '';
+                $lastName = $res['primer_apellido'] ?? $res['apellido'] ?? $res['apellidos'] ?? $res['p_apellido'] ?? '';
+                $secondLastName = $res['segundo_apellido'] ?? $res['s_apellido'] ?? '';
+                
+                $fullName = trim("$firstName $middleName $lastName $secondLastName");
                 echo json_encode([
-                    'name' => trim(preg_replace('/\s+/', ' ', $fullName)),
+                    'name' => mb_convert_case($fullName, MB_CASE_TITLE, "UTF-8"),
                     'cedula' => $cedula,
                     'phone' => ''
                 ]);
             } else {
+
                 echo json_encode(['error' => 'No encontrado']);
             }
         }
@@ -241,9 +272,10 @@ switch ($action) {
 
     case 'save_customer':
         $data = json_decode(file_get_contents('php://input'), true);
+        $cedula = preg_replace('/\D/', '', $data['cedula']);
         $stmt = $pdo->prepare("INSERT INTO customers (business_id, name, cedula, phone) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), phone=VALUES(phone)");
-        $stmt->execute([$business_id, $data['name'], $data['cedula'], $data['phone']]);
-        echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
+        $stmt->execute([$business_id, $data['name'], $cedula, $data['phone']]);
+        echo json_encode(['success' => true]);
         break;
 
     default:

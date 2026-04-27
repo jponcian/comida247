@@ -19,14 +19,39 @@ define('EVOLUTION_KITCHEN_NUMBER', '584121234567'); // Número que recibirá las
  * Función para consultar datos por cédula
  */
 function fetchCedulaData($cedula) {
-    $url = "https://api.cedula.com.ve/api/v1/search?id=" . CEDULA_API_ID . "&token=" . CEDULA_API_TOKEN . "&cedula=" . $cedula;
+    $nacionalidad = 'V';
+    $numero = preg_replace('/\D/', '', $cedula);
+
+    // Extraer nacionalidad si viene en formato V-12345678 o V12345678
+    if (preg_match('/^([VEJGP])[-]?(\d+)/i', $cedula, $matches)) {
+        $nacionalidad = strtoupper($matches[1]);
+        $numero = $matches[2];
+    }
+
+    if (!$numero) return null;
+    
+    $params = [
+        'app_id' => CEDULA_API_ID,
+        'token' => CEDULA_API_TOKEN,
+        'nacionalidad' => $nacionalidad,
+        'cedula' => $numero
+    ];
+
+    $url = "https://api.cedula.com.ve/api/v1?" . http_build_query($params);
+    
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    return json_decode($response, true);
+
+    if ($http_code !== 200) return null;
+    
+    $result = json_decode($response, true);
+    return $result['data'] ?? $result['payload'] ?? $result;
 }
 
 /**

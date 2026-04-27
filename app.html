@@ -6,6 +6,7 @@
     <title>Comida247 - POS</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <nav>
@@ -16,8 +17,10 @@
             <button id="nav-caja" onclick="showSection('caja')">Caja</button>
             <button id="nav-admin" style="display:none" onclick="showSection('admin')">Admin</button>
             <button id="nav-super" style="display:none" onclick="showSection('super')">Super</button>
-            <button class="btn-logout" onclick="logout()">Salir</button>
+            <button id="nav-salir" onclick="logout()">Salir</button>
+            <button id="btn-standby-list" class="btn-standby-float" onclick="openStandbyModal()" style="display: none;"></button>
         </div>
+
     </nav>
 
     <main>
@@ -84,8 +87,9 @@
             <div class="input-group" style="margin-top: 1rem;">
                 <label>Datos del Cliente</label>
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <input type="text" id="cust-cedula" placeholder="Cédula">
-                    <button class="btn-small" onclick="searchCustomerByCedula()">🔍</button>
+                    <input type="text" id="cust-cedula" placeholder="Cédula" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')" onblur="searchCustomerByCedula()">
+
+                    <button class="btn-small btn-primary" onclick="searchCustomerByCedula()">🔍</button>
                 </div>
                 <input type="text" id="cust-name" placeholder="Nombre y Apellido" style="margin-bottom: 0.5rem;">
                 <input type="text" id="cust-phone" placeholder="Teléfono (WhatsApp)">
@@ -93,12 +97,14 @@
 
             <div id="checkout-items" style="max-height: 200px; overflow-y: auto; margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;"></div>
             
-            <textarea id="order-observations" placeholder="Observaciones (ej: sin cebolla, poco picante...)"></textarea>
+            <textarea id="order-observations" placeholder="Observaciones Generales (ej: traer servilletas, el timbre no suena...)"></textarea>
             
             <div class="modal-actions">
-                <button class="btn-cancel" onclick="closeModal('modal-checkout')">Cerrar</button>
-                <button class="btn-confirm" id="btn-confirm-order" onclick="confirmOrder()">Confirmar Pedido</button>
+                <button class="btn-cancel" onclick="closeModal('modal-checkout')">❌ Cerrar</button>
+                <button class="btn-standby" onclick="parkOrder()">⏳ En Espera</button>
+                <button class="btn-confirm" id="btn-confirm-order" onclick="confirmOrder()">✅ Confirmar Pedido</button>
             </div>
+
         </div>
     </div>
 
@@ -138,7 +144,8 @@
             <div class="input-group">
                 <label>Cédula</label>
                 <div style="display: flex; gap: 0.5rem;">
-                    <input type="text" id="user-cedula">
+                    <input type="text" id="user-cedula" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+
                     <button class="btn-small" onclick="searchUserByCedula()">🔍</button>
                 </div>
             </div>
@@ -152,5 +159,16 @@
         </div>
     </div>
     <script src="app.js"></script>
+    <!-- MODAL STANDBY -->
+    <div id="modal-standby" class="modal">
+        <div class="modal-content">
+            <h3>Pedidos en Espera</h3>
+            <div id="standby-list" class="admin-list" style="margin-top: 1rem;"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('modal-standby')">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
