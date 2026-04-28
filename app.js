@@ -514,7 +514,7 @@ async function loadKitchenOrders() {
                         ${o.table_number ? `<div style="font-size: 0.9rem; color: var(--primary);">📍 Mesa: ${o.table_number}</div>` : ''}
                     </div>
                     <div style="display: flex; gap: 0.3rem;">
-                        ${isPaid ? '<span class="status-badge" style="background: var(--success); font-size: 0.7rem;">PAGADO</span>' : ''}
+                        ${isPaid ? '<span class="paid-badge">Pagado</span>' : ''}
                         <span class="badge ${o.status}">${o.status.toUpperCase()}</span>
                     </div>
                 </div>
@@ -618,13 +618,17 @@ async function loadPaymentOrders() {
 
         return `
             <div class="order-card ${o.status === 'listo' ? 'ready-payment' : ''}">
-                <div class="order-header">
-                    <strong>#${o.id} - ${o.customer_name}</strong>
-                    <div style="display: flex; gap: 0.3rem;">
-                        ${isPaid ? '<span class="status-badge" style="background: var(--success); font-size: 0.7rem; padding: 2px 6px; border-radius: 6px; color: white;">PAGADO</span>' : ''}
-                        <span class="badge ${o.status}">${o.status.toUpperCase()}</span>
+                <div class="order-header" style="flex-wrap: wrap; gap: 0.8rem; align-items: center;">
+                    <strong style="flex: 1; min-width: 200px; font-size: 1.1rem;">#${o.id} - ${o.customer_name}</strong>
+                    <div style="display: flex; gap: 0.6rem; align-items: center; justify-content: flex-end; margin-left: auto;">
+                        <button class="btn-icon" onclick="confirmDeleteOrder(${o.id})" title="Eliminar Orden" style="color: var(--danger); font-size: 1.1rem; background: rgba(255, 77, 109, 0.1); width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,77,109,0.2);">🗑️</button>
+                        <div style="display: flex; gap: 0.4rem; align-items: center;">
+                            ${isPaid ? '<span class="paid-badge">Pagado</span>' : ''}
+                            <span class="badge ${o.status}" style="padding: 4px 10px; border-radius: 8px;">${o.status.toUpperCase()}</span>
+                        </div>
                     </div>
                 </div>
+
                 <div class="order-details">
                     <div style="margin-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
                         ${itemsHtml}
@@ -635,9 +639,10 @@ async function loadPaymentOrders() {
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem;">
-                    <button class="btn-pay" ${isPaid ? 'disabled style="opacity: 0.5; background: #333;"' : ''} onclick="processPayment(${o.id}, '${o.order_type}')">
+                    <button class="btn-pay" ${isPaid ? 'disabled style="background: var(--success); color: white; box-shadow: none; opacity: 0.9; cursor: default;"' : ''} onclick="processPayment(${o.id}, '${o.order_type}')">
                         ${isPaid ? '✅ Pagado' : '💵 Pagar'}
                     </button>
+
                     ${actionBtn || `<button class="btn-small" onclick="editExistingOrder(${JSON.stringify(o).replace(/"/g, '&quot;')})">✏️ Editar</button>`}
                 </div>
             </div>
@@ -687,7 +692,18 @@ async function processPayment(id, type) {
 
     currentPaymentOrderId = id;
     currentPaymentTotal = parseFloat(order.total_usd);
-    addedPayments = [];
+    
+    // Cargar abonos existentes desde la base de datos para que no se pierdan al refrescar
+    const payRes = await fetch(`api.php?action=get_payments&order_id=${id}`);
+    const dbPayments = await payRes.json();
+    
+    addedPayments = dbPayments.map(p => ({
+        id: p.id,
+        amountOriginal: parseFloat(p.amount_original),
+        currency: p.currency,
+        method: p.method,
+        amountUSD: parseFloat(p.amount_usd)
+    }));
 
     document.getElementById('pay-total-usd').innerText = `$${currentPaymentTotal.toFixed(2)}`;
     document.getElementById('pay-total-bs').innerText = `Bs ${(currentPaymentTotal * exchangeRate).toFixed(2)}`;
@@ -700,6 +716,7 @@ async function processPayment(id, type) {
     updatePaymentList();
     document.getElementById('modal-payment').style.display = 'flex';
 }
+
 
 function updateDefaultPaymentAmount() {
     const currency = document.getElementById('pay-currency').value;
@@ -714,17 +731,43 @@ function updateDefaultPaymentAmount() {
     } else {
         amountInput.value = remainingUSD.toFixed(2);
     }
+    updateConversionDisplay();
 }
+
 
 function formatMoneyInput(input) {
     let value = input.value.replace(/\D/g, '');
-    if (value === '') return;
+    if (value === '') {
+        document.getElementById('pay-conversion').innerText = '';
+        return;
+    }
     
     let floatValue = parseFloat(value) / 100;
     input.value = floatValue.toFixed(2);
+    updateConversionDisplay();
 }
 
-function addPaymentRow() {
+function updateConversionDisplay() {
+    const amount = parseFloat(document.getElementById('pay-amount').value) || 0;
+    const currency = document.getElementById('pay-currency').value;
+    const conversionEl = document.getElementById('pay-conversion');
+    
+    if (amount <= 0) {
+        conversionEl.innerText = '';
+        return;
+    }
+
+    if (currency === 'VES') {
+        const usd = amount / exchangeRate;
+        conversionEl.innerText = `≈ $ ${usd.toFixed(2)} USD`;
+    } else {
+        const ves = amount * exchangeRate;
+        conversionEl.innerText = `≈ Bs ${ves.toFixed(2)} VES`;
+    }
+}
+
+
+async function addPaymentRow() {
     const amountInput = document.getElementById('pay-amount');
     const amount = parseFloat(amountInput.value);
     const currency = document.getElementById('pay-currency').value;
@@ -732,19 +775,44 @@ function addPaymentRow() {
 
     if (!amount || amount <= 0) return;
 
-    const amountUSD = (currency === 'VES') ? amount / exchangeRate : amount;
-    
+    let finalAmount = amount;
+    let finalCurrency = currency;
+    let amountUSD = (currency === 'VES') ? amount / exchangeRate : amount;
+
+    // Lógica: Si el método es de Bs (punto, pago_movil, efectivo) 
+    // y el cajero puso el monto en USD como referencia, lo guardamos en Bs.
+    if (method !== 'divisas' && currency === 'USD') {
+        finalAmount = amount * exchangeRate;
+        finalCurrency = 'VES';
+    }
+
+    // Guardar abono en la base de datos inmediatamente
+    const res = await fetch('api.php?action=add_payment', {
+        method: 'POST',
+        body: JSON.stringify({
+            order_id: currentPaymentOrderId,
+            amount_original: finalAmount,
+            currency: finalCurrency,
+            method: method,
+            amount_usd: amountUSD
+        })
+    });
+    const result = await res.json();
+
     addedPayments.push({
-        amountOriginal: amount,
-        currency,
+        id: result.id,
+        amountOriginal: finalAmount,
+        currency: finalCurrency,
         method,
-        amountUSD
+        amountUSD: amountUSD
     });
 
     amountInput.value = '';
     updatePaymentList();
     updateDefaultPaymentAmount();
 }
+
+
 
 function updatePaymentList() {
     const container = document.getElementById('payments-list');
@@ -759,19 +827,47 @@ function updatePaymentList() {
     `).join('');
 
     const totalPaidUSD = addedPayments.reduce((s, p) => s + p.amountUSD, 0);
-    const remaining = currentPaymentTotal - totalPaidUSD;
+    let remaining = currentPaymentTotal - totalPaidUSD;
+    
+    // Evitar errores de precisión decimal (ej: -0.00000001)
+    if (Math.abs(remaining) < 0.01) remaining = 0;
 
     balanceEl.innerText = `$${remaining.toFixed(2)}`;
-    balanceEl.style.color = remaining <= 0.01 ? 'var(--success)' : 'var(--danger)';
+    balanceEl.style.color = remaining <= 0 ? 'var(--success)' : 'var(--danger)';
 
-    finishBtn.disabled = remaining > 0.01;
+    const balanceBsEl = document.getElementById('pay-remaining-bs');
+    if (balanceBsEl) {
+        balanceBsEl.innerText = `Bs ${(remaining * exchangeRate).toFixed(2)}`;
+        balanceBsEl.style.color = remaining <= 0 ? 'var(--success)' : 'var(--primary)';
+    }
+
+    finishBtn.disabled = remaining > 0;
+    if (remaining <= 0) {
+        finishBtn.style.background = 'linear-gradient(135deg, var(--success), #00c853)';
+    } else {
+        finishBtn.style.background = '';
+    }
+
+
+
 }
 
-function removePaymentRow(index) {
+async function removePaymentRow(index) {
+    const payment = addedPayments[index];
+    
+    // Eliminar de la base de datos
+    if (payment.id) {
+        await fetch('api.php?action=delete_payment', {
+            method: 'POST',
+            body: JSON.stringify({ id: payment.id })
+        });
+    }
+
     addedPayments.splice(index, 1);
     updatePaymentList();
     updateDefaultPaymentAmount();
 }
+
 
 function getPaymentMethodEmoji(method) {
     const icons = { efectivo: '💵', punto: '💳', pago_movil: '📱', divisas: '💵' };
@@ -779,13 +875,21 @@ function getPaymentMethodEmoji(method) {
 }
 
 async function finishPaymentProcess() {
+    if (!currentPaymentOrderId) {
+        Swal.fire({ title: 'Error', text: 'No se detectó el ID de la orden. Intenta cerrar y abrir el modal.', icon: 'error', background: 'var(--bg)', color: 'var(--text)' });
+        return;
+    }
+
     const btn = document.getElementById('btn-finish-payment');
+    const originalContent = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '⌛ Procesando...';
 
     try {
+        console.log("Enviando pago para orden:", currentPaymentOrderId, addedPayments);
         const res = await fetch('api.php?action=process_payment', {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 id: currentPaymentOrderId, 
                 payments: addedPayments 
@@ -796,7 +900,7 @@ async function finishPaymentProcess() {
         if (result.success) {
             Swal.fire({
                 title: '¡Pagado!',
-                text: 'La orden ha sido cancelada exitosamente.',
+                text: 'La orden ha sido marcada como pagada exitosamente.',
                 icon: 'success',
                 timer: 2000,
                 showConfirmButton: false,
@@ -805,13 +909,23 @@ async function finishPaymentProcess() {
             });
             closeModal('modal-payment');
             loadPaymentOrders();
+        } else {
+            throw new Error(result.error || 'Error desconocido en el servidor');
         }
     } catch (e) {
-        console.error(e);
-    } finally {
-        btn.innerHTML = 'Finalizar Pago';
+        console.error("Error al finalizar pago:", e);
+        Swal.fire({
+            title: 'Error al procesar',
+            text: 'Hubo un problema al guardar el pago: ' + e.message,
+            icon: 'error',
+            background: 'var(--bg)',
+            color: 'var(--text)'
+        });
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
     }
 }
+
 
 
 
@@ -1257,4 +1371,73 @@ async function updateExchangeRate() {
 function closeModal(id) {
     document.getElementById(id).style.display = 'none';
 }
-function updateNavBadges(orders) { const kitchenCount = orders.filter(o => o.status === 'pendiente' || o.status === 'preparando').length; const cajaCount = orders.filter(o => !(o.status === 'listo' && parseInt(o.is_paid) === 1) && o.status !== 'cobrado' && o.status !== 'despachado').length; const bKitchen = document.getElementById('badge-kitchen'); const bCaja = document.getElementById('badge-caja'); if (bKitchen) { if (kitchenCount > 0) { bKitchen.innerText = kitchenCount; bKitchen.style.display = 'inline-block'; } else { bKitchen.style.display = 'none'; } } if (bCaja) { if (cajaCount > 0) { bCaja.innerText = cajaCount; bCaja.style.display = 'inline-block'; } else { bCaja.style.display = 'none'; } } }
+function updateNavBadges(orders) {
+    const kitchenCount = orders.filter(o => o.status === 'pendiente' || o.status === 'preparando').length;
+    const cajaCount = orders.filter(o => !(o.status === 'listo' && parseInt(o.is_paid) === 1) && o.status !== 'cobrado' && o.status !== 'despachado').length;
+    const pedidosCount = orders.length; // Total de órdenes no archivadas (en sistema)
+
+    const bKitchen = document.getElementById('badge-kitchen');
+    const bCaja = document.getElementById('badge-caja');
+    const bPedidos = document.getElementById('badge-pedidos');
+
+    if (bKitchen) {
+        bKitchen.innerText = kitchenCount;
+        bKitchen.style.display = kitchenCount > 0 ? 'inline-block' : 'none';
+    }
+    if (bCaja) {
+        bCaja.innerText = cajaCount;
+        bCaja.style.display = cajaCount > 0 ? 'inline-block' : 'none';
+    }
+    if (bPedidos) {
+        bPedidos.innerText = pedidosCount;
+        bPedidos.style.display = pedidosCount > 0 ? 'inline-block' : 'none';
+    }
+}
+
+async function confirmDeleteOrder(id) {
+    const result = await Swal.fire({
+        title: '¿Eliminar orden?',
+        text: "Esta acción no se puede deshacer y borrará todos los abonos registrados.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--danger)',
+        cancelButtonColor: 'rgba(255,255,255,0.1)',
+        confirmButtonText: 'Sí, borrar',
+        cancelButtonText: 'Cancelar',
+        background: 'var(--bg)',
+        color: 'var(--text)'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            const res = await fetch('api.php?action=delete_order', {
+                method: 'POST',
+                body: JSON.stringify({ id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                Swal.fire({ 
+                    title: '¡Eliminado!', 
+                    icon: 'success', 
+                    background: 'var(--bg)', 
+                    color: 'var(--text)',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                updateLists();
+            } else {
+                Swal.fire({ 
+                    title: 'Error', 
+                    text: data.error || 'No se pudo eliminar', 
+                    icon: 'error', 
+                    background: 'var(--bg)', 
+                    color: 'var(--text)' 
+                });
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+}
+
+

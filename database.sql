@@ -83,6 +83,8 @@ CREATE TABLE IF NOT EXISTS orders (
     total_usd DECIMAL(10, 2) NOT NULL,
     observations TEXT,
     status ENUM('pendiente', 'preparando', 'listo', 'cobrado') DEFAULT 'pendiente',
+    is_paid BOOLEAN DEFAULT FALSE,
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
@@ -120,6 +122,19 @@ CREATE TABLE IF NOT EXISTS tables (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
 );
+
+-- 10. Tabla de Pagos de Pedidos
+CREATE TABLE IF NOT EXISTS order_payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    amount_original DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    method VARCHAR(50) NOT NULL,
+    amount_usd DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
 
 -- Datos iniciales para pruebas
 INSERT INTO businesses (name) VALUES ('La Gran Hamburguesa'), ('Pizzería Italia');

@@ -12,7 +12,8 @@
     <nav>
         <div class="nav-brand">Comida247</div>
         <div class="nav-links">
-            <button id="nav-pedidos" class="active" onclick="showSection('pedidos')">Órdenes</button>
+            <button id="nav-pedidos" class="active" onclick="showSection('pedidos')">Órdenes <span id="badge-pedidos" class="nav-badge" style="display: none;">0</span></button>
+
             <button id="nav-cocina" onclick="showSection('cocina')">Cocina <span id="badge-kitchen" class="nav-badge" style="display: none;">0</span></button>
             <button id="nav-caja" onclick="showSection('caja')">Caja <span id="badge-caja" class="nav-badge" style="display: none;">0</span></button>
             <button id="nav-historial" style="display:none" onclick="showSection('historial')">Historial</button>
@@ -220,20 +221,26 @@
             </div>
             
             <div id="payment-totals" class="payment-summary" style="margin-bottom: 1.5rem; text-align: center;">
-                <div style="font-size: 0.9rem; color: var(--text-muted);">Total a Pagar</div>
-                <div id="pay-total-usd" style="font-size: 2rem; font-weight: 800; color: var(--secondary);">$0.00</div>
-                <div id="pay-total-bs" style="font-size: 1.2rem; color: var(--primary); font-weight: 600;">Bs 0.00</div>
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">Total a Pagar</div>
+                <div style="display: flex; justify-content: center; align-items: baseline; gap: 0.8rem; font-weight: 800; font-size: 2rem;">
+                    <span id="pay-total-usd" style="color: var(--secondary);">$0.00</span>
+                    <span style="color: var(--text-muted); font-weight: 400; font-size: 1.5rem;">/</span>
+                    <span id="pay-total-bs" style="color: var(--primary); font-size: 1.5rem;">Bs 0.00</span>
+                </div>
             </div>
+
 
             <div class="input-group">
                 <label>Añadir Pago</label>
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <input type="text" id="pay-amount" placeholder="Monto" oninput="formatMoneyInput(this)" style="flex: 2;">
+                    <input type="text" id="pay-amount" placeholder="Monto" oninput="formatMoneyInput(this)" onfocus="this.select()" style="flex: 2;">
                     <select id="pay-currency" style="flex: 1;" onchange="updateDefaultPaymentAmount()">
                         <option value="VES" selected>Bs VES</option>
                         <option value="USD">$ USD</option>
                     </select>
                 </div>
+                <div id="pay-conversion" style="font-size: 0.85rem; color: var(--primary); font-weight: 600; margin-bottom: 0.8rem; min-height: 1.2rem;"></div>
+
                 <select id="pay-method">
                     <option value="punto">💳 Punto de Venta</option>
                     <option value="pago_movil">📱 Pago Móvil</option>
@@ -248,8 +255,14 @@
             </div>
 
             <div id="payment-balance" style="margin-top: 1.5rem; padding: 1rem; border-radius: 12px; background: rgba(255,255,255,0.03); text-align: right;">
-                <div style="font-size: 0.8rem; color: var(--text-muted);">Restante</div>
-                <div id="pay-remaining" style="font-size: 1.2rem; font-weight: 800;">$0.00</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Restante</div>
+                <div style="display: flex; justify-content: flex-end; align-items: baseline; gap: 0.5rem; font-weight: 800; font-size: 1.4rem;">
+                    <span id="pay-remaining" style="color: var(--danger);">$0.00</span>
+                    <span style="color: var(--text-muted); font-weight: 400; font-size: 1.1rem;">/</span>
+                    <span id="pay-remaining-bs" style="color: var(--primary); font-size: 1.1rem;">Bs 0.00</span>
+                </div>
+
+
             </div>
 
             <div class="modal-actions" style="margin-top: 1.5rem;">

@@ -53,26 +53,17 @@ switch ($action) {
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         break;
     
-    case 'update_status':
+    case 'delete_order':
         $data = json_decode(file_get_contents('php://input'), true);
-        $stmt = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ? AND business_id = ?");
-        $stmt->execute([$data['status'], $data['id'], $business_id]);
+        $id = $data['id'];
+        if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
+        $stmt = $pdo->prepare("DELETE FROM orders WHERE id = ? AND business_id = ?");
+        $stmt->execute([$id, $business_id]);
         echo json_encode(['success' => true]);
         break;
 
-    case 'process_payment':
-        $data = json_decode(file_get_contents('php://input'), true);
-        $id = $data['id'];
-        $status = $data['status'] ?? null;
-        
-        if ($status) {
-            $stmt = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ? AND business_id = ?");
-            $stmt->execute([$status, $id, $business_id]);
-        }
-        
-        // Aquí se podría registrar el pago en una tabla de transacciones en el futuro
-        echo json_encode(['success' => true]);
-        break;
+
+
 
     case 'save_ingredient':
         if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
@@ -204,12 +195,35 @@ switch ($action) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
         break;
+    case 'get_payments':
+        $order_id = $_GET['order_id'] ?? 0;
+        $stmt = $pdo->prepare("SELECT * FROM order_payments WHERE order_id = ?");
+        $stmt->execute([$order_id]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        break;
+
+    case 'add_payment':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $stmt = $pdo->prepare("INSERT INTO order_payments (order_id, amount_original, currency, method, amount_usd) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$data['order_id'], $data['amount_original'], $data['currency'], $data['method'], $data['amount_usd']]);
+        echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
+        break;
+
+    case 'delete_payment':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $stmt = $pdo->prepare("DELETE FROM order_payments WHERE id = ?");
+        $stmt->execute([$data['id']]);
+        echo json_encode(['success' => true]);
+        break;
+
     case 'process_payment':
         $data = json_decode(file_get_contents('php://input'), true);
         $id = $data['id'];
+        // Marcar como pagado
         $pdo->prepare("UPDATE orders SET is_paid = 1 WHERE id = ?")->execute([$id]);
         echo json_encode(['success' => true]);
         break;
+
 
     case 'update_status':
         $data = json_decode(file_get_contents('php://input'), true);
@@ -246,9 +260,17 @@ switch ($action) {
         break;
 
     case 'get_exchange_rate':
-        // Simulado o buscando de otra BD como antes
-        echo json_encode(['rate' => 36.50]);
+        try {
+            // Consultamos la base de datos saludsonrisa directamente
+            $stmt = $pdo->query("SELECT rate FROM saludsonrisa.exchange_rates WHERE source = 'BCV' AND `from` = 'USD' AND `to` = 'VES' ORDER BY date DESC, id DESC LIMIT 1");
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $rate = $row ? (float)$row['rate'] : 36.50; // Fallback por si acaso
+            echo json_encode(['rate' => $rate]);
+        } catch (Exception $e) {
+            echo json_encode(['rate' => 36.50, 'error' => $e->getMessage()]);
+        }
         break;
+
 
     // --- SUPER ADMIN ---
     case 'get_businesses':

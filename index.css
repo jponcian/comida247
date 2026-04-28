@@ -283,6 +283,27 @@ nav button.active {
 
 .btn-logout { color: var(--danger) !important; }
 
+.nav-badge {
+    background: var(--accent);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 20px;
+    margin-left: 5px;
+    display: inline-block;
+    line-height: 1;
+    vertical-align: middle;
+    box-shadow: 0 2px 8px rgba(233, 69, 96, 0.4);
+    animation: badgePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes badgePop {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+
 .view-section {
     padding: 2rem;
     display: none;
@@ -901,11 +922,12 @@ select {
 }
 
 .btn-pay {
-    background: linear-gradient(135deg, #00c853, #00e676);
-    color: #0b0d11;
+    background: linear-gradient(135deg, var(--primary), #ffb700);
+    color: white;
     border: none;
     font-weight: 800;
-    box-shadow: 0 8px 20px rgba(0, 200, 83, 0.3);
+    box-shadow: 0 8px 20px rgba(255, 140, 0, 0.2);
+
     border-radius: 12px;
     padding: 0.8rem 1.5rem;
     cursor: pointer;
@@ -925,4 +947,24 @@ select {
 
 .btn-pay:active {
     transform: scale(0.95);
+}
+.paid-badge {
+    background: rgba(0, 230, 118, 0.1);
+    color: #00e676;
+    border: 1px solid rgba(0, 230, 118, 0.3);
+    font-size: 0.65rem;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 4px 12px rgba(0, 230, 118, 0.1);
+}
+
+.paid-badge::before {
+    content: '✔';
+    font-size: 0.8rem;
 }

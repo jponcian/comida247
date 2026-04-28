@@ -1,20 +1,16 @@
 <?php
-// require_once 'api.php';
+require_once __DIR__ . '/../config.php';
 
-$host = 'localhost';
-$db   = 'comida247';
-$user = 'root';
-$pass = '';
-$charset = 'utf8mb4';
 
-$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+$dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
 $options = [
     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
 ];
 
 try {
-     $pdo = new PDO($dsn, $user, $pass, $options);
+     $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+
      
      // Obtener el ID del negocio (asumimos 1 por ahora o el primero)
      $stmt = $pdo->query("SELECT id FROM businesses LIMIT 1");
