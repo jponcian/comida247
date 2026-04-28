@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comida247 - POS</title>
+    <title>Los Calidad - POS</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <nav>
-        <div class="nav-brand">Comida247</div>
+        <div class="nav-brand">Los Calidad</div>
         <div class="nav-links">
             <button id="nav-pedidos" class="active" onclick="showSection('pedidos')">Órdenes <span id="badge-pedidos" class="nav-badge" style="display: none;">0</span></button>
 
@@ -200,6 +200,26 @@
             </div>
         </div>
     </div>
+    <!-- MODAL INGREDIENTE (Admin) -->
+    <div id="modal-ingredient" class="modal">
+        <div class="modal-content">
+            <h3 id="ingredient-modal-title">Ingrediente</h3>
+            <input type="hidden" id="edit-ingredient-id">
+            <div class="input-group">
+                <label>Nombre del Ingrediente</label>
+                <input type="text" id="ing-name" placeholder="Ej: Extra Queso, Tocino">
+            </div>
+            <div class="input-group">
+                <label>Precio USD</label>
+                <input type="number" step="0.01" id="ing-price" placeholder="0.00">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('modal-ingredient')">Cancelar</button>
+                <button class="btn-confirm" onclick="saveIngredient()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL STANDBY -->
     <div id="modal-standby" class="modal">
         <div class="modal-content">
@@ -314,6 +334,6 @@
     <!-- BOTÓN FLOTANTE PEDIDOS EN ESPERA -->
     <button id="btn-standby-list" class="btn-standby-float" onclick="openStandbyModal()" style="display: none;"></button>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=1.1"></script>
 </body>
 </html>

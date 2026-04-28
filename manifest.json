@@ -1,6 +1,6 @@
 {
-    "name": "Comida 24/7 Fast-Bite",
-    "short_name": "FastBite",
+    "name": "Los Calidad",
+    "short_name": "Los Calidad",
     "description": "Gestión de pedidos de comida rápida",
     "start_url": "index.html",
     "display": "standalone",

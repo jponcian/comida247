@@ -260,7 +260,7 @@ switch ($action) {
                 }
 
                 $msg_client .= "\n🌟 Valoramos mucho tu preferencia. ¡Que tengas un futuro lleno de éxitos y momentos deliciosos! 🚀\n";
-                $msg_client .= "_Comida247 - Alimentando tus sueños._";
+                $msg_client .= "_Los Calidad - Alimentando tus sueños._";
 
                 sendWhatsApp($order['customer_phone'], $msg_client);
             }

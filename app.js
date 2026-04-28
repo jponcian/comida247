@@ -7,6 +7,7 @@ let currentEditingOrderId = null;
 let currentExtraTargetIndex = null;
 let standbyOrders = JSON.parse(localStorage.getItem('standbyOrders') || '[]');
 let lastKnownOrderId = 0;
+let allProducts = [];
 
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -56,11 +57,11 @@ async function refreshData() {
 
 async function loadProducts() {
     const res = await fetch('api.php?action=get_products');
-    const products = await res.json();
+    allProducts = await res.json();
     const container = document.getElementById('menu-container');
     
     if (currentSection === 'pedidos') {
-        container.innerHTML = products.map(p => `
+        container.innerHTML = allProducts.map(p => `
             <div class="product-card">
                 <img src="${p.image_url}" alt="${p.name}">
                 <div class="product-info">
@@ -77,10 +78,10 @@ async function loadProducts() {
 
     // Si estamos en admin, cargar lista de admin
     if (currentSection === 'admin') {
-        document.getElementById('admin-products-list').innerHTML = products.map(p => `
+        document.getElementById('admin-products-list').innerHTML = allProducts.map(p => `
             <div class="admin-item">
                 <span>${p.name} ($${p.price_usd})</span>
-                <button onclick="editProduct(${JSON.stringify(p).replace(/"/g, '&quot;')})">Editar</button>
+                <button onclick="editProduct(${p.id})">Editar</button>
             </div>
         `).join('');
     }
@@ -94,7 +95,7 @@ async function loadIngredients() {
         document.getElementById('admin-ingredients-list').innerHTML = availableIngredients.map(i => `
             <div class="admin-item">
                 <span>${i.name} (+$${i.price_usd})</span>
-                <button onclick="editIngredient(${JSON.stringify(i).replace(/"/g, '&quot;')})">Editar</button>
+                <button onclick="editIngredient(${i.id})">Editar</button>
             </div>
         `).join('');
     }
@@ -1158,7 +1159,11 @@ async function saveUser() {
         phone: document.getElementById('user-phone').value,
         password: document.getElementById('user-pass').value
     };
-    await fetch('api.php?action=save_user', { method: 'POST', body: JSON.stringify(data) });
+    await fetch('api.php?action=save_user', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data) 
+    });
     Swal.fire({
         title: '¡Guardado!',
         text: 'El usuario ha sido actualizado.',
@@ -1184,7 +1189,11 @@ async function saveBusiness() {
         active: document.getElementById('bus-active').value
     };
     
-    const res = await fetch('api.php?action=save_business', { method: 'POST', body: JSON.stringify(data) });
+    const res = await fetch('api.php?action=save_business', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data) 
+    });
     const result = await res.json();
     
     if (result.success) {
@@ -1330,6 +1339,11 @@ function playNotificationSound() {
 }
 
 // --- CRUD Admin (Simplificado para el ejemplo) ---
+function editProduct(id) {
+    const prod = allProducts.find(p => p.id == id);
+    if (prod) openProductModal(prod);
+}
+
 function openProductModal(prod = null) {
     document.getElementById('product-modal-title').innerText = prod ? 'Editar Producto' : 'Nuevo Producto';
     document.getElementById('edit-product-id').value = prod ? prod.id : '';
@@ -1350,7 +1364,11 @@ async function saveProduct() {
         category: document.getElementById('prod-cat').value,
         image_url: document.getElementById('prod-img').value
     };
-    await fetch('api.php?action=save_product', { method: 'POST', body: JSON.stringify(data) });
+    await fetch('api.php?action=save_product', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data) 
+    });
     Swal.fire({
         title: '¡Guardado!',
         text: 'El producto ha sido actualizado.',
@@ -1360,6 +1378,41 @@ async function saveProduct() {
     });
     closeModal('modal-product');
     loadProducts();
+}
+
+function editIngredient(id) {
+    const ing = availableIngredients.find(i => i.id == id);
+    if (ing) openIngredientModal(ing);
+}
+
+function openIngredientModal(ing = null) {
+    document.getElementById('ingredient-modal-title').innerText = ing ? 'Editar Ingrediente' : 'Nuevo Ingrediente';
+    document.getElementById('edit-ingredient-id').value = ing ? ing.id : '';
+    document.getElementById('ing-name').value = ing ? ing.name : '';
+    document.getElementById('ing-price').value = ing ? ing.price_usd : '';
+    document.getElementById('modal-ingredient').style.display = 'flex';
+}
+
+async function saveIngredient() {
+    const data = {
+        id: document.getElementById('edit-ingredient-id').value || undefined,
+        name: document.getElementById('ing-name').value,
+        price_usd: document.getElementById('ing-price').value
+    };
+    await fetch('api.php?action=save_ingredient', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data) 
+    });
+    Swal.fire({
+        title: '¡Guardado!',
+        text: 'El ingrediente ha sido actualizado.',
+        icon: 'success',
+        background: 'var(--bg)',
+        color: 'var(--text)'
+    });
+    closeModal('modal-ingredient');
+    loadIngredients();
 }
 
 
