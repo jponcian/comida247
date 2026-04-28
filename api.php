@@ -57,9 +57,18 @@ switch ($action) {
         $data = json_decode(file_get_contents('php://input'), true);
         $id = $data['id'];
         if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
+        $stmt = $pdo->prepare("SELECT is_paid, status FROM orders WHERE id = ?");
+        $stmt->execute([$id]);
+        $order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($order && $order['is_paid'] == 1 && ($order['status'] === 'listo' || $order['status'] === 'cobrado')) {
+            die(json_encode(['error' => 'No se puede eliminar una orden que ya ha sido pagada y culminada.']));
+        }
+
         $stmt = $pdo->prepare("DELETE FROM orders WHERE id = ? AND business_id = ?");
         $stmt->execute([$id, $business_id]);
         echo json_encode(['success' => true]);
+
         break;
 
 

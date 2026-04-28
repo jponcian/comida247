@@ -621,7 +621,11 @@ async function loadPaymentOrders() {
                 <div class="order-header" style="flex-wrap: wrap; gap: 0.8rem; align-items: center;">
                     <strong style="flex: 1; min-width: 200px; font-size: 1.1rem;">#${o.id} - ${o.customer_name}</strong>
                     <div style="display: flex; gap: 0.6rem; align-items: center; justify-content: flex-end; margin-left: auto;">
-                        <button class="btn-icon" onclick="confirmDeleteOrder(${o.id})" title="Eliminar Orden" style="color: var(--danger); font-size: 1.1rem; background: rgba(255, 77, 109, 0.1); width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,77,109,0.2);">🗑️</button>
+                        ${!(isPaid && (o.status === 'listo' || o.status === 'cobrado')) ? 
+                            `<button class="btn-icon" onclick="confirmDeleteOrder(${o.id})" title="Eliminar Orden" style="color: var(--danger); font-size: 1.1rem; background: rgba(255, 77, 109, 0.1); width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,77,109,0.2);">🗑️</button>` 
+                            : ''
+                        }
+
                         <div style="display: flex; gap: 0.4rem; align-items: center;">
                             ${isPaid ? '<span class="paid-badge">Pagado</span>' : ''}
                             <span class="badge ${o.status}" style="padding: 4px 10px; border-radius: 8px;">${o.status.toUpperCase()}</span>

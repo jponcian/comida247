@@ -1,4 +1,6 @@
 <?php
+date_default_timezone_set('America/Caracas');
+
 // Configuración de la Base de Datos
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'comida247');
