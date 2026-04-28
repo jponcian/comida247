@@ -46,6 +46,14 @@ switch ($action) {
         echo json_encode(['success' => true]);
         break;
 
+    case 'delete_product':
+        if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
+        $data = json_decode(file_get_contents('php://input'), true);
+        $stmt = $pdo->prepare("DELETE FROM products WHERE id = ? AND business_id = ?");
+        $stmt->execute([$data['id'], $business_id]);
+        echo json_encode(['success' => true]);
+        break;
+
     // --- INGREDIENTES ---
     case 'get_ingredients':
         $stmt = $pdo->prepare("SELECT * FROM ingredients WHERE business_id = ? AND active = 1");
@@ -87,6 +95,14 @@ switch ($action) {
         echo json_encode(['success' => true]);
         break;
 
+    case 'delete_ingredient':
+        if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
+        $data = json_decode(file_get_contents('php://input'), true);
+        $stmt = $pdo->prepare("DELETE FROM ingredients WHERE id = ? AND business_id = ?");
+        $stmt->execute([$data['id'], $business_id]);
+        echo json_encode(['success' => true]);
+        break;
+
     // --- MESAS ---
     case 'get_tables':
         $stmt = $pdo->prepare("SELECT * FROM tables WHERE business_id = ? AND active = 1 ORDER BY name");
@@ -104,6 +120,14 @@ switch ($action) {
             $stmt = $pdo->prepare("INSERT INTO tables (business_id, name) VALUES (?, ?)");
             $stmt->execute([$business_id, $data['name']]);
         }
+        echo json_encode(['success' => true]);
+        break;
+
+    case 'delete_table':
+        if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
+        $data = json_decode(file_get_contents('php://input'), true);
+        $stmt = $pdo->prepare("DELETE FROM tables WHERE id = ? AND business_id = ?");
+        $stmt->execute([$data['id'], $business_id]);
         echo json_encode(['success' => true]);
         break;
 

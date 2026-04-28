@@ -81,7 +81,10 @@ async function loadProducts() {
         document.getElementById('admin-products-list').innerHTML = allProducts.map(p => `
             <div class="admin-item">
                 <span>${p.name} ($${p.price_usd})</span>
-                <button onclick="editProduct(${p.id})">Editar</button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button onclick="editProduct(${p.id})">Editar</button>
+                    <button style="background: var(--danger-glass); color: var(--danger); border-color: var(--danger);" onclick="deleteProduct(${p.id})">🗑️</button>
+                </div>
             </div>
         `).join('');
     }
@@ -95,7 +98,10 @@ async function loadIngredients() {
         document.getElementById('admin-ingredients-list').innerHTML = availableIngredients.map(i => `
             <div class="admin-item">
                 <span>${i.name} (+$${i.price_usd})</span>
-                <button onclick="editIngredient(${i.id})">Editar</button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button onclick="editIngredient(${i.id})">Editar</button>
+                    <button style="background: var(--danger-glass); color: var(--danger); border-color: var(--danger);" onclick="deleteIngredient(${i.id})">🗑️</button>
+                </div>
             </div>
         `).join('');
     }
@@ -1084,7 +1090,10 @@ async function loadTablesAdmin() {
     container.innerHTML = tables.map(t => `
         <div class="admin-item">
             <span>${t.name}</span>
-            <button onclick="openTableModal(${JSON.stringify(t).replace(/"/g, '&quot;')})">Editar</button>
+            <div style="display: flex; gap: 0.5rem;">
+                <button onclick="openTableModal(${JSON.stringify(t).replace(/"/g, '&quot;')})">Editar</button>
+                <button style="background: var(--danger-glass); color: var(--danger); border-color: var(--danger);" onclick="deleteTable(${t.id})">🗑️</button>
+            </div>
         </div>
     `).join('');
 }
@@ -1109,6 +1118,27 @@ async function saveTable() {
     
     closeModal('modal-table');
     loadTablesAdmin();
+}
+
+async function deleteTable(id) {
+    const result = await Swal.fire({
+        title: '¿Eliminar mesa?',
+        text: 'Esta acción no se puede deshacer.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--danger)',
+        confirmButtonText: 'Sí, eliminar',
+        background: 'var(--bg)',
+        color: 'var(--text)'
+    });
+
+    if (result.isConfirmed) {
+        await fetch('api.php?action=delete_table', {
+            method: 'POST',
+            body: JSON.stringify({ id })
+        });
+        loadTablesAdmin();
+    }
 }
 
 let allBusinesses = [];
@@ -1380,6 +1410,27 @@ async function saveProduct() {
     loadProducts();
 }
 
+async function deleteProduct(id) {
+    const result = await Swal.fire({
+        title: '¿Eliminar producto?',
+        text: 'Esta acción no se puede deshacer.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--danger)',
+        confirmButtonText: 'Sí, eliminar',
+        background: 'var(--bg)',
+        color: 'var(--text)'
+    });
+
+    if (result.isConfirmed) {
+        await fetch('api.php?action=delete_product', {
+            method: 'POST',
+            body: JSON.stringify({ id })
+        });
+        loadProducts();
+    }
+}
+
 function editIngredient(id) {
     const ing = availableIngredients.find(i => i.id == id);
     if (ing) openIngredientModal(ing);
@@ -1413,6 +1464,27 @@ async function saveIngredient() {
     });
     closeModal('modal-ingredient');
     loadIngredients();
+}
+
+async function deleteIngredient(id) {
+    const result = await Swal.fire({
+        title: '¿Eliminar ingrediente?',
+        text: 'Esta acción no se puede deshacer.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--danger)',
+        confirmButtonText: 'Sí, eliminar',
+        background: 'var(--bg)',
+        color: 'var(--text)'
+    });
+
+    if (result.isConfirmed) {
+        await fetch('api.php?action=delete_ingredient', {
+            method: 'POST',
+            body: JSON.stringify({ id })
+        });
+        loadIngredients();
+    }
 }
 
 
@@ -1481,7 +1553,7 @@ async function confirmDeleteOrder(id) {
                     timer: 1500,
                     showConfirmButton: false
                 });
-                updateLists();
+                refreshData();
             } else {
                 Swal.fire({ 
                     title: 'Error', 
