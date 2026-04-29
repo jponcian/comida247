@@ -106,6 +106,12 @@
             <h2 style="margin-top: 2rem;">Gestión de Mesas</h2>
             <button class="btn-add" onclick="openTableModal()">+ Nueva Mesa</button>
             <div id="admin-tables-list" class="admin-list"></div>
+
+            <div id="admin-users-section" style="display: none;">
+                <h2 style="margin-top: 2rem;">Gestión de Usuarios del Local</h2>
+                <button class="btn-add" onclick="openUserModal()">+ Nuevo Usuario</button>
+                <div id="admin-users-list" class="admin-list"></div>
+            </div>
         </section>
 
         <!-- SECCIÓN SUPER ADMIN -->
@@ -232,6 +238,18 @@
             <div class="input-group"><label>Nombre y Apellido</label><input type="text" id="user-name"></div>
             <div class="input-group"><label>Teléfono</label><input type="text" id="user-phone" inputmode="tel"></div>
             <div class="input-group"><label>Contraseña</label><input type="password" id="user-pass"></div>
+            <div class="input-group"><label>Rol</label>
+                <select id="user-role">
+                    <option value="atencion">Vendedor</option>
+                    <option value="cocina">Cocina</option>
+                    <option value="caja">Caja</option>
+                    <option value="administrador">Administrador</option>
+                </select>
+            </div>
+            <div class="input-group" id="user-business-group" style="display: none;">
+                <label>Negocio Asignado</label>
+                <select id="user-business"></select>
+            </div>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal('modal-user')">Cancelar</button>
                 <button class="btn-confirm" onclick="saveUser()">Guardar</button>

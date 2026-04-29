@@ -349,29 +349,58 @@ switch ($action) {
         break;
 
     case 'get_users':
-        if (!$is_super) die(json_encode(['error' => 'Solo Super Admin']));
-        $stmt = $pdo->query("SELECT id, name, cedula, phone, is_super_admin FROM users");
-        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
+        if ($is_super) {
+            $stmt = $pdo->query("SELECT u.id, u.name, u.cedula, u.phone, u.is_super_admin, bu.role, b.name as business_name, bu.business_id 
+                                 FROM users u 
+                                 LEFT JOIN business_user bu ON u.id = bu.user_id 
+                                 LEFT JOIN businesses b ON bu.business_id = b.id");
+            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        } else {
+            $stmt = $pdo->prepare("SELECT u.id, u.name, u.cedula, u.phone, u.is_super_admin, bu.role, b.name as business_name, bu.business_id 
+                                   FROM users u 
+                                   JOIN business_user bu ON u.id = bu.user_id 
+                                   JOIN businesses b ON bu.business_id = b.id
+                                   WHERE bu.business_id = ?");
+            $stmt->execute([$business_id]);
+            echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        }
         break;
 
     case 'save_user':
-        if (!$is_super) die(json_encode(['error' => 'Solo Super Admin']));
+        if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
         $data = json_decode(file_get_contents('php://input'), true);
         $pass_hash = !empty($data['password']) ? password_hash($data['password'], PASSWORD_DEFAULT) : null;
-        
-        if (isset($data['id'])) {
-            if ($pass_hash) {
-                $stmt = $pdo->prepare("UPDATE users SET name=?, cedula=?, phone=?, password=? WHERE id=?");
-                $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $pass_hash, $data['id']]);
+        $user_role_input = $data['role'] ?? 'atencion';
+        $target_business = $is_super ? ($data['business_id'] ?? null) : $business_id;
+
+        $pdo->beginTransaction();
+        try {
+            if (isset($data['id'])) {
+                $user_id = $data['id'];
+                if ($pass_hash) {
+                    $stmt = $pdo->prepare("UPDATE users SET name=?, cedula=?, phone=?, password=? WHERE id=?");
+                    $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $pass_hash, $user_id]);
+                } else {
+                    $stmt = $pdo->prepare("UPDATE users SET name=?, cedula=?, phone=? WHERE id=?");
+                    $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $user_id]);
+                }
             } else {
-                $stmt = $pdo->prepare("UPDATE users SET name=?, cedula=?, phone=? WHERE id=?");
-                $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $data['id']]);
+                $stmt = $pdo->prepare("INSERT INTO users (name, cedula, phone, password) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $pass_hash]);
+                $user_id = $pdo->lastInsertId();
             }
-        } else {
-            $stmt = $pdo->prepare("INSERT INTO users (name, cedula, phone, password) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $pass_hash]);
+
+            if ($target_business) {
+                $stmt = $pdo->prepare("INSERT INTO business_user (business_id, user_id, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role = ?");
+                $stmt->execute([$target_business, $user_id, $user_role_input, $user_role_input]);
+            }
+            $pdo->commit();
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            echo json_encode(['error' => 'Error al guardar: ' . $e->getMessage()]);
         }
-        echo json_encode(['success' => true]);
         break;
 
     case 'delete_business':

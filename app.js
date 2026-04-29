@@ -45,6 +45,7 @@ function setupUIByRole(auth) {
         document.getElementById('nav-admin').style.display = 'block';
         document.getElementById('nav-historial').style.display = 'block';
         document.getElementById('nav-dashboard').style.display = 'block';
+        document.getElementById('admin-users-section').style.display = 'block';
     }
     if (auth.user.is_super_admin) {
         document.getElementById('nav-super').style.display = 'block';
@@ -1163,23 +1164,49 @@ async function loadBusinesses() {
 async function loadUsers() {
     const res = await fetch('api.php?action=get_users');
     allUsers = await res.json();
-    document.getElementById('super-users-list').innerHTML = allUsers.map(u => `
+    
+    const renderList = allUsers.map(u => `
         <div class="admin-item">
-            <span>${u.name} (V-${u.cedula})</span>
-            <div style="display: flex; gap: 0.5rem;">
-                <button onclick="editUser(${u.id})">Editar</button>
+            <div>
+                <span style="font-weight: 600;">${u.name} (V-${u.cedula})</span>
+                ${u.role ? `<span class="badge ${u.role === 'administrador' ? 'listo' : 'pendiente'}" style="font-size: 0.7rem; padding: 2px 6px;">${u.role.toUpperCase()}</span>` : ''}
+                ${u.business_name ? `<div style="font-size: 0.8rem; color: var(--text-muted);">🏢 ${u.business_name}</div>` : ''}
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button onclick='editUser(${JSON.stringify(u).replace(/"/g, "&quot;")})'>Editar</button>
                 <button style="background: var(--danger-glass); color: var(--danger); border-color: var(--danger);" onclick="deleteUser(${u.id})">🗑️</button>
             </div>
         </div>
     `).join('');
+
+    if (currentUser && currentUser.is_super_admin) {
+        document.getElementById('super-users-list').innerHTML = renderList;
+        document.getElementById('admin-users-section').style.display = 'none'; // Ocultar en admin si es super admin para no duplicar (o dejar en ambas)
+    } else {
+        document.getElementById('admin-users-list').innerHTML = renderList;
+    }
 }
 
-function openUserModal(user = null) {
+async function openUserModal(user = null) {
     document.getElementById('edit-user-id').value = user ? user.id : '';
     document.getElementById('user-cedula').value = user ? user.cedula : '';
     document.getElementById('user-name').value = user ? user.name : '';
     document.getElementById('user-phone').value = user ? user.phone : '';
     document.getElementById('user-pass').value = '';
+    document.getElementById('user-role').value = user && user.role ? user.role : 'atencion';
+    
+    if (currentUser && currentUser.is_super_admin) {
+        document.getElementById('user-business-group').style.display = 'block';
+        const res = await fetch('api.php?action=get_businesses');
+        const businesses = await res.json();
+        document.getElementById('user-business').innerHTML = businesses.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+        if (user && user.business_id) {
+            document.getElementById('user-business').value = user.business_id;
+        }
+    } else {
+        document.getElementById('user-business-group').style.display = 'none';
+    }
+    
     document.getElementById('modal-user').style.display = 'flex';
 }
 
@@ -1189,7 +1216,9 @@ async function saveUser() {
         cedula: document.getElementById('user-cedula').value,
         name: document.getElementById('user-name').value,
         phone: document.getElementById('user-phone').value,
-        password: document.getElementById('user-pass').value
+        password: document.getElementById('user-pass').value,
+        role: document.getElementById('user-role').value,
+        business_id: (currentUser && currentUser.is_super_admin) ? document.getElementById('user-business').value : null
     };
     await fetch('api.php?action=save_user', { 
         method: 'POST', 
