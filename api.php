@@ -487,6 +487,22 @@ switch ($action) {
         ]);
         break;
 
+    case 'trigger_n8n':
+        $url = 'http://178.104.106.5:5678/webhook/generar-reporte-whatsapp';
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        $response = curl_exec($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($httpcode >= 200 && $httpcode < 300) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['error' => 'No se pudo conectar a n8n', 'code' => $httpcode]);
+        }
+        break;
+
     default:
         echo json_encode(['error' => 'Invalid action']);
         break;

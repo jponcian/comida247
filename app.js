@@ -1790,9 +1790,7 @@ async function llamarN8n() {
     });
     
     try {
-        const response = await fetch('http://178.104.106.5:5678/webhook/generar-reporte-whatsapp', { 
-            method: 'GET' 
-        });
+        const response = await fetch('api.php?action=trigger_n8n');
         
         if(response.ok) {
             Swal.fire('¡Enviado!', 'El reporte fue generado y enviado por WhatsApp exitosamente.', 'success');
