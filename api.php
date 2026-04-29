@@ -14,13 +14,14 @@ try {
 }
 
 // Verificar autenticación y negocio seleccionado
+$n8n_token = 'optimus_n8n';
 if (!isset($_SESSION['user_id']) || (!isset($_SESSION['business_id']) && !$_SESSION['is_super_admin'])) {
-    if (($_GET['action'] ?? '') !== 'get_exchange_rate') {
+    if (($_GET['action'] ?? '') !== 'get_exchange_rate' && ($_GET['token'] ?? '') !== $n8n_token) {
         die(json_encode(['error' => 'No autorizado']));
     }
 }
 
-$business_id = $_SESSION['business_id'] ?? null;
+$business_id = $_SESSION['business_id'] ?? ($_GET['business_id'] ?? null);
 $role = $_SESSION['role'] ?? null;
 $is_super = $_SESSION['is_super_admin'] ?? false;
 $action = $_GET['action'] ?? '';
@@ -434,6 +435,56 @@ switch ($action) {
         $stmt = $pdo->prepare("INSERT INTO customers (business_id, name, cedula, phone) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), phone=VALUES(phone)");
         $stmt->execute([$business_id, $data['name'], $cedula, $data['phone']]);
         echo json_encode(['success' => true]);
+        break;
+
+    case 'get_dashboard_data':
+        if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
+        
+        // 1. Ventas diarias (últimos 7 días)
+        $stmt = $pdo->prepare("SELECT DATE(created_at) as date, SUM(total_usd) as total FROM orders WHERE business_id = ? AND status = 'cobrado' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(created_at) ORDER BY date ASC");
+        $stmt->execute([$business_id]);
+        $sales_daily = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // 2. Productos más vendidos (Top 5)
+        $stmt = $pdo->prepare("SELECT p.name, SUM(oi.quantity) as total_qty FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id WHERE o.business_id = ? AND o.status = 'cobrado' GROUP BY p.id ORDER BY total_qty DESC LIMIT 5");
+        $stmt->execute([$business_id]);
+        $top_products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // 3. Actividad por hora (última semana)
+        $stmt = $pdo->prepare("SELECT HOUR(created_at) as hour, COUNT(*) as total_orders FROM orders WHERE business_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) GROUP BY HOUR(created_at) ORDER BY hour ASC");
+        $stmt->execute([$business_id]);
+        $hourly_activity = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            'sales_daily' => $sales_daily,
+            'top_products' => $top_products,
+            'hourly_activity' => $hourly_activity
+        ]);
+        break;
+
+    case 'get_daily_report':
+        $date = $_GET['date'] ?? date('Y-m-d');
+        
+        // Estadísticas generales del día
+        $stmt = $pdo->prepare("SELECT SUM(total_usd) as total_usd, COUNT(*) as total_orders FROM orders WHERE business_id = ? AND DATE(created_at) = ? AND status = 'cobrado'");
+        $stmt->execute([$business_id, $date]);
+        $stats = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Top productos del día
+        $stmt = $pdo->prepare("SELECT p.name, SUM(oi.quantity) as qty FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id WHERE o.business_id = ? AND DATE(o.created_at) = ? AND o.status = 'cobrado' GROUP BY p.id ORDER BY qty DESC");
+        $stmt->execute([$business_id, $date]);
+        $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            'success' => true,
+            'business' => $business_id,
+            'date' => $date,
+            'summary' => [
+                'revenue_usd' => (float)($stats['total_usd'] ?? 0),
+                'order_count' => (int)($stats['total_orders'] ?? 0)
+            ],
+            'products' => $products
+        ]);
         break;
 
     default:

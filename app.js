@@ -44,6 +44,7 @@ function setupUIByRole(auth) {
     if (userRole === 'administrador' || auth.user.is_super_admin) {
         document.getElementById('nav-admin').style.display = 'block';
         document.getElementById('nav-historial').style.display = 'block';
+        document.getElementById('nav-dashboard').style.display = 'block';
     }
     if (auth.user.is_super_admin) {
         document.getElementById('nav-super').style.display = 'block';
@@ -1034,6 +1035,7 @@ function showSection(id) {
     }
     if (id === 'admin') { loadProducts(); loadIngredients(); loadTablesAdmin(); }
     if (id === 'super') { loadBusinesses(); loadUsers(); }
+    if (id === 'dashboard') loadDashboardData();
 }
 
 async function loadHistory() {
@@ -1371,11 +1373,13 @@ function playNotificationSound() {
 // --- CRUD Admin (Simplificado para el ejemplo) ---
 function previewProductImage(input) {
     const preview = document.getElementById('prod-img-preview');
+    const placeholder = document.getElementById('upload-placeholder');
     if (input.files && input.files[0]) {
         const reader = new FileReader();
         reader.onload = function(e) {
             preview.src = e.target.result;
             preview.style.display = 'block';
+            if (placeholder) placeholder.style.opacity = '0';
         }
         reader.readAsDataURL(input.files[0]);
     }
@@ -1398,12 +1402,16 @@ function openProductModal(prod = null) {
     // Resetear file input y previsualización
     document.getElementById('prod-img-file').value = '';
     const preview = document.getElementById('prod-img-preview');
+    const placeholder = document.getElementById('upload-placeholder');
+    
     if (prod && prod.image_url) {
         preview.src = prod.image_url;
         preview.style.display = 'block';
+        if (placeholder) placeholder.style.opacity = '0';
     } else {
         preview.src = '';
         preview.style.display = 'none';
+        if (placeholder) placeholder.style.opacity = '1';
     }
     
     document.getElementById('modal-product').style.display = 'flex';
@@ -1638,3 +1646,133 @@ async function confirmDeleteOrder(id) {
 }
 
 
+
+let charts = {};
+
+async function loadDashboardData() {
+    try {
+        const res = await fetch('api.php?action=get_dashboard_data');
+        const data = await res.json();
+        
+        renderSalesChart(data.sales_daily);
+        renderProductsChart(data.top_products);
+        renderHoursChart(data.hourly_activity);
+    } catch (e) {
+        console.error("Error cargando dashboard:", e);
+    }
+}
+
+function renderSalesChart(data) {
+    const ctx = document.getElementById('chart-sales').getContext('2d');
+    if (charts.sales) charts.sales.destroy();
+    
+    charts.sales = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map(d => {
+                const date = new Date(d.date + 'T00:00:00');
+                return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
+            }),
+            datasets: [{
+                label: 'Ventas USD',
+                data: data.map(d => d.total),
+                borderColor: '#ff8c00',
+                backgroundColor: 'rgba(255, 140, 0, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#ff8c00',
+                pointRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => ` $${parseFloat(ctx.raw).toFixed(2)}`
+                    }
+                }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true, 
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#a0a0a0' }
+                },
+                x: { 
+                    grid: { display: false },
+                    ticks: { color: '#a0a0a0' }
+                }
+            }
+        }
+    });
+}
+
+function renderProductsChart(data) {
+    const ctx = document.getElementById('chart-products').getContext('2d');
+    if (charts.products) charts.products.destroy();
+    
+    charts.products = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => d.name),
+            datasets: [{
+                label: 'Cantidad Vendida',
+                data: data.map(d => d.total_qty),
+                backgroundColor: [
+                    'rgba(255, 140, 0, 0.6)',
+                    'rgba(255, 204, 0, 0.6)',
+                    'rgba(233, 69, 96, 0.6)',
+                    'rgba(0, 230, 118, 0.6)',
+                    'rgba(0, 184, 212, 0.6)'
+                ],
+                borderRadius: 8
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#a0a0a0' } },
+                y: { grid: { display: false }, ticks: { color: '#a0a0a0' } }
+            }
+        }
+    });
+}
+
+function renderHoursChart(data) {
+    const ctx = document.getElementById('chart-hours').getContext('2d');
+    if (charts.hours) charts.hours.destroy();
+    
+    // Preparar las 24 horas
+    const labels = Array.from({length: 24}, (_, i) => `${i}:00`);
+    const values = new Array(24).fill(0);
+    data.forEach(d => {
+        values[parseInt(d.hour)] = parseInt(d.total_orders);
+    });
+
+    charts.hours = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Pedidos',
+                data: values,
+                backgroundColor: 'rgba(255, 204, 0, 0.4)',
+                borderColor: 'var(--secondary)',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#a0a0a0', stepSize: 1 } },
+                x: { grid: { display: false }, ticks: { color: '#a0a0a0' } }
+            }
+        }
+    });
+}

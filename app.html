@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <nav>
@@ -18,6 +19,7 @@
             <button id="nav-cocina" onclick="showSection('cocina')">Cocina <span id="badge-kitchen" class="nav-badge" style="display: none;">0</span></button>
             <button id="nav-caja" onclick="showSection('caja')">Caja <span id="badge-caja" class="nav-badge" style="display: none;">0</span></button>
             <button id="nav-historial" style="display:none" onclick="showSection('historial')">Historial</button>
+            <button id="nav-dashboard" style="display:none" onclick="showSection('dashboard')">Dashboard</button>
             <button id="nav-admin" style="display:none" onclick="showSection('admin')">Admin</button>
             <button id="nav-super" style="display:none" onclick="showSection('super')">Super</button>
             <button id="nav-salir" onclick="logout()">Salir</button>
@@ -39,6 +41,27 @@
         <!-- SECCIÓN CAJA -->
         <section id="caja" class="view-section">
             <div id="payment-container" class="grid-container"></div>
+        </section>
+
+        <!-- SECCIÓN DASHBOARD -->
+        <section id="dashboard" class="view-section">
+            <div class="section-header">
+                <h2>Dashboard de Estadísticas</h2>
+            </div>
+            <div class="dashboard-grid">
+                <div class="chart-container">
+                    <h3>Ventas Diarias (Últimos 7 días)</h3>
+                    <canvas id="chart-sales"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Productos Más Vendidos</h3>
+                    <canvas id="chart-products"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Actividad por Hora (Frecuencia)</h3>
+                    <canvas id="chart-hours"></canvas>
+                </div>
+            </div>
         </section>
         
         <!-- SECCIÓN HISTORIAL -->
@@ -173,16 +196,15 @@
             <div class="input-group"><label>Categoría</label><input type="text" id="prod-cat"></div>
             <div class="input-group">
                 <label>Imagen del Producto</label>
-                <div class="image-upload-container">
+                <div class="image-uploader" onclick="document.getElementById('prod-img-file').click()">
                     <img id="prod-img-preview" src="" alt="Vista previa" style="display: none;">
-                    <div class="upload-controls">
-                        <button type="button" class="btn-upload" onclick="document.getElementById('prod-img-file').click()">
-                            <span>📷 Subir Imagen</span>
-                        </button>
-                        <input type="file" id="prod-img-file" accept="image/*" style="display: none;" onchange="previewProductImage(this)">
-                        <input type="text" id="prod-img" placeholder="O pega una URL externa...">
+                    <div id="upload-placeholder">
+                        <span class="upload-icon">📸</span>
+                        <p>Haz clic para subir o cambiar imagen</p>
                     </div>
+                    <input type="file" id="prod-img-file" accept="image/*" style="display: none;" onchange="previewProductImage(this)">
                 </div>
+                <input type="text" id="prod-img" placeholder="O pega una URL externa..." style="margin-top: 1rem;">
             </div>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal('modal-product')">Cancelar</button>
