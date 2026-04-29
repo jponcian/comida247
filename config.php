@@ -4,8 +4,8 @@ date_default_timezone_set('America/Caracas');
 // Configuración de la Base de Datos
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'comida247');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_USER', 'javier');
+define('DB_PASS', 'javier');
 
 // API Cedula.com.ve
 define('CEDULA_API_ID', '2014');
