@@ -350,7 +350,7 @@ switch ($action) {
 
     case 'get_users':
         if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
-        if ($is_super) {
+        if ($is_super && !isset($_GET['local'])) {
             $stmt = $pdo->query("SELECT u.id, u.name, u.cedula, u.phone, u.is_super_admin, bu.role, b.name as business_name, bu.business_id 
                                  FROM users u 
                                  LEFT JOIN business_user bu ON u.id = bu.user_id 
@@ -373,21 +373,36 @@ switch ($action) {
         $pass_hash = !empty($data['password']) ? password_hash($data['password'], PASSWORD_DEFAULT) : null;
         $user_role_input = $data['role'] ?? 'atencion';
         $target_business = $is_super ? ($data['business_id'] ?? null) : $business_id;
+        $is_super_admin_input = isset($data['is_super_admin']) ? (int)$data['is_super_admin'] : 0;
+
+        if (empty($data['name']) || empty($data['cedula'])) {
+            die(json_encode(['error' => 'Nombre y Cédula son obligatorios']));
+        }
 
         $pdo->beginTransaction();
         try {
-            if (isset($data['id'])) {
-                $user_id = $data['id'];
+            $user_id = $data['id'] ?? null;
+            
+            // Si no hay ID, buscar si ya existe un usuario con esa cédula
+            if (!$user_id) {
+                $stmt = $pdo->prepare("SELECT id FROM users WHERE cedula = ?");
+                $stmt->execute([$data['cedula']]);
+                $user_id = $stmt->fetchColumn();
+            }
+
+            if ($user_id) {
+                // Actualizar usuario existente
                 if ($pass_hash) {
-                    $stmt = $pdo->prepare("UPDATE users SET name=?, cedula=?, phone=?, password=? WHERE id=?");
-                    $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $pass_hash, $user_id]);
+                    $stmt = $pdo->prepare("UPDATE users SET name=?, cedula=?, phone=?, password=?, is_super_admin=? WHERE id=?");
+                    $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $pass_hash, $is_super_admin_input, $user_id]);
                 } else {
-                    $stmt = $pdo->prepare("UPDATE users SET name=?, cedula=?, phone=? WHERE id=?");
-                    $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $user_id]);
+                    $stmt = $pdo->prepare("UPDATE users SET name=?, cedula=?, phone=?, is_super_admin=? WHERE id=?");
+                    $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $is_super_admin_input, $user_id]);
                 }
             } else {
-                $stmt = $pdo->prepare("INSERT INTO users (name, cedula, phone, password) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $pass_hash]);
+                // Crear nuevo usuario
+                $stmt = $pdo->prepare("INSERT INTO users (name, cedula, phone, password, is_super_admin) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$data['name'], $data['cedula'], $data['phone'], $pass_hash, $is_super_admin_input]);
                 $user_id = $pdo->lastInsertId();
             }
 
@@ -425,10 +440,9 @@ switch ($action) {
         $raw_cedula = $_GET['cedula'] ?? '';
         if (!$raw_cedula) exit;
         
-        // Normalizar cédula a solo números para consistencia
         $cedula = preg_replace('/\D/', '', $raw_cedula);
         
-        // Primero buscar en base de datos local de clientes
+        // 1. Buscar en base de datos local de clientes
         $stmt = $pdo->prepare("SELECT * FROM customers WHERE business_id = ? AND cedula = ?");
         $stmt->execute([$business_id, $cedula]);
         $local = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -436,24 +450,39 @@ switch ($action) {
         if ($local) {
             echo json_encode($local);
         } else {
-            // Si no existe, buscar en API externa (pasamos la original por si trae letra)
-            $res = fetchCedulaData($raw_cedula);
-            if ($res && (isset($res['p_nombre']) || isset($res['primer_nombre']) || isset($res['nombre']))) {
-                // Mapear campos según los nombres detectados en quiniela y comunes
-                $firstName = $res['primer_nombre'] ?? $res['nombre'] ?? $res['nombres'] ?? $res['p_nombre'] ?? '';
-                $middleName = $res['segundo_nombre'] ?? $res['s_nombre'] ?? '';
-                $lastName = $res['primer_apellido'] ?? $res['apellido'] ?? $res['apellidos'] ?? $res['p_apellido'] ?? '';
-                $secondLastName = $res['segundo_apellido'] ?? $res['s_apellido'] ?? '';
-                
-                $fullName = trim("$firstName $middleName $lastName $secondLastName");
-                echo json_encode([
-                    'name' => mb_convert_case($fullName, MB_CASE_TITLE, "UTF-8"),
-                    'cedula' => $cedula,
-                    'phone' => ''
-                ]);
+            // 2. Buscar en base de datos de usuarios (por si es un empleado ya registrado en otro local)
+            $stmt = $pdo->prepare("SELECT name, phone, cedula FROM users WHERE cedula = ?");
+            $stmt->execute([$cedula]);
+            $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($user_data) {
+                echo json_encode($user_data);
             } else {
+                // 3. Buscar en API externa
+                $res = fetchCedulaData($raw_cedula);
+                
+                // Ser muy permisivo con los campos que pueden venir de la API
+                $hasName = isset($res['p_nombre']) || isset($res['primer_nombre']) || 
+                           isset($res['nombre']) || isset($res['nombres']) || 
+                           isset($res['nombre_completo']) || isset($res['fullname']);
 
-                echo json_encode(['error' => 'No encontrado']);
+                if ($res && $hasName) {
+                    $firstName = $res['primer_nombre'] ?? $res['nombre'] ?? $res['nombres'] ?? $res['p_nombre'] ?? '';
+                    $lastName = $res['primer_apellido'] ?? $res['apellido'] ?? $res['apellidos'] ?? $res['p_apellido'] ?? '';
+                    $fullName = $res['nombre_completo'] ?? $res['fullname'] ?? trim("$firstName $lastName");
+                    
+                    if (empty($fullName) && !empty($firstName)) {
+                        $fullName = $firstName; // Por si solo viene nombres
+                    }
+
+                    echo json_encode([
+                        'name' => mb_convert_case($fullName, MB_CASE_TITLE, "UTF-8"),
+                        'cedula' => $cedula,
+                        'phone' => $res['telefono'] ?? ''
+                    ]);
+                } else {
+                    echo json_encode(['error' => 'No encontrado']);
+                }
             }
         }
         break;

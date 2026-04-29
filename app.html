@@ -225,7 +225,7 @@
     <!-- MODAL USUARIO (Super Admin) -->
     <div id="modal-user" class="modal">
         <div class="modal-content">
-            <h3>Usuario</h3>
+            <h3 id="user-modal-title">Usuario</h3>
             <input type="hidden" id="edit-user-id">
             <div class="input-group">
                 <label>Cédula</label>
@@ -249,6 +249,10 @@
             <div class="input-group" id="user-business-group" style="display: none;">
                 <label>Negocio Asignado</label>
                 <select id="user-business"></select>
+            </div>
+            <div class="input-group" id="user-super-group" style="display: none; flex-direction: row; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+                <input type="checkbox" id="user-is-super" style="width: auto;">
+                <label for="user-is-super" style="margin: 0;">¿Es Super Administrador?</label>
             </div>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal('modal-user')">Cancelar</button>

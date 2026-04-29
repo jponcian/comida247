@@ -24,7 +24,6 @@ function fetchCedulaData($cedula) {
     $nacionalidad = 'V';
     $numero = preg_replace('/\D/', '', $cedula);
 
-    // Extraer nacionalidad si viene en formato V-12345678 o V12345678
     if (preg_match('/^([VEJGP])[-]?(\d+)/i', $cedula, $matches)) {
         $nacionalidad = strtoupper($matches[1]);
         $numero = $matches[2];
@@ -32,6 +31,7 @@ function fetchCedulaData($cedula) {
 
     if (!$numero) return null;
     
+    // Intentar con el endpoint principal
     $params = [
         'app_id' => CEDULA_API_ID,
         'token' => CEDULA_API_TOKEN,
@@ -39,21 +39,30 @@ function fetchCedulaData($cedula) {
         'cedula' => $numero
     ];
 
-    $url = "https://api.cedula.com.ve/api/v1?" . http_build_query($params);
-    
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    $urls = [
+        "https://api.cedula.com.ve/api/v1/search?" . http_build_query($params),
+        "https://api.cedula.com.ve/api/v1?" . http_build_query($params)
+    ];
 
-    if ($http_code !== 200) return null;
+    foreach ($urls as $url) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($http_code === 200 && $response) {
+            $result = json_decode($response, true);
+            if ($result) {
+                return $result['data'] ?? $result['payload'] ?? $result;
+            }
+        }
+    }
     
-    $result = json_decode($response, true);
-    return $result['data'] ?? $result['payload'] ?? $result;
+    return null;
 }
 
 /**

@@ -8,6 +8,7 @@ let currentExtraTargetIndex = null;
 let standbyOrders = JSON.parse(localStorage.getItem('standbyOrders') || '[]');
 let lastKnownOrderId = 0;
 let allProducts = [];
+let currentUser = null;
 
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -18,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     userRole = auth.role;
+    currentUser = auth.user;
     setupUIByRole(auth);
     
     loadProducts();
@@ -1034,7 +1036,7 @@ function showSection(id) {
         document.getElementById('history-date').valueAsDate = new Date();
         loadHistory();
     }
-    if (id === 'admin') { loadProducts(); loadIngredients(); loadTablesAdmin(); }
+    if (id === 'admin') { loadProducts(); loadIngredients(); loadTablesAdmin(); loadUsers(); }
     if (id === 'super') { loadBusinesses(); loadUsers(); }
     if (id === 'dashboard') loadDashboardData();
 }
@@ -1162,7 +1164,8 @@ async function loadBusinesses() {
 }
 
 async function loadUsers() {
-    const res = await fetch('api.php?action=get_users');
+    const url = currentSection === 'admin' ? 'api.php?action=get_users&local=1' : 'api.php?action=get_users';
+    const res = await fetch(url);
     allUsers = await res.json();
     
     const renderList = allUsers.map(u => `
@@ -1173,21 +1176,23 @@ async function loadUsers() {
                 ${u.business_name ? `<div style="font-size: 0.8rem; color: var(--text-muted);">🏢 ${u.business_name}</div>` : ''}
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
-                <button onclick='editUser(${JSON.stringify(u).replace(/"/g, "&quot;")})'>Editar</button>
-                <button style="background: var(--danger-glass); color: var(--danger); border-color: var(--danger);" onclick="deleteUser(${u.id})">🗑️</button>
+                <button onclick="editUser('${u.id}')">Editar</button>
+                <button style="background: var(--danger-glass); color: var(--danger); border-color: var(--danger);" onclick="deleteUser('${u.id}')">🗑️</button>
             </div>
         </div>
     `).join('');
 
-    if (currentUser && currentUser.is_super_admin) {
-        document.getElementById('super-users-list').innerHTML = renderList;
-        document.getElementById('admin-users-section').style.display = 'none'; // Ocultar en admin si es super admin para no duplicar (o dejar en ambas)
+    if (currentSection === 'super') {
+        const list = document.getElementById('super-users-list');
+        if (list) list.innerHTML = renderList;
     } else {
-        document.getElementById('admin-users-list').innerHTML = renderList;
+        const list = document.getElementById('admin-users-list');
+        if (list) list.innerHTML = renderList;
     }
 }
 
 async function openUserModal(user = null) {
+    document.getElementById('user-modal-title').innerText = user ? 'Editar Usuario' : 'Nuevo Usuario';
     document.getElementById('edit-user-id').value = user ? user.id : '';
     document.getElementById('user-cedula').value = user ? user.cedula : '';
     document.getElementById('user-name').value = user ? user.name : '';
@@ -1197,14 +1202,20 @@ async function openUserModal(user = null) {
     
     if (currentUser && currentUser.is_super_admin) {
         document.getElementById('user-business-group').style.display = 'block';
+        document.getElementById('user-super-group').style.display = 'block';
+        document.getElementById('user-is-super').checked = user && user.is_super_admin == 1;
+        
         const res = await fetch('api.php?action=get_businesses');
         const businesses = await res.json();
-        document.getElementById('user-business').innerHTML = businesses.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+        document.getElementById('user-business').innerHTML = '<option value="">Sin Negocio (Solo Super Admin)</option>' + businesses.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
         if (user && user.business_id) {
             document.getElementById('user-business').value = user.business_id;
+        } else {
+            document.getElementById('user-business').value = '';
         }
     } else {
         document.getElementById('user-business-group').style.display = 'none';
+        document.getElementById('user-super-group').style.display = 'none';
     }
     
     document.getElementById('modal-user').style.display = 'flex';
@@ -1213,13 +1224,24 @@ async function openUserModal(user = null) {
 async function saveUser() {
     const data = {
         id: document.getElementById('edit-user-id').value || undefined,
-        cedula: document.getElementById('user-cedula').value,
-        name: document.getElementById('user-name').value,
-        phone: document.getElementById('user-phone').value,
+        cedula: document.getElementById('user-cedula').value.trim(),
+        name: document.getElementById('user-name').value.trim(),
+        phone: document.getElementById('user-phone').value.trim(),
         password: document.getElementById('user-pass').value,
         role: document.getElementById('user-role').value,
-        business_id: (currentUser && currentUser.is_super_admin) ? document.getElementById('user-business').value : null
+        business_id: (currentUser && currentUser.is_super_admin) ? document.getElementById('user-business').value : null,
+        is_super_admin: (currentUser && currentUser.is_super_admin) ? (document.getElementById('user-is-super').checked ? 1 : 0) : 0
     };
+
+    if (!data.cedula || !data.name) {
+        Swal.fire({ icon: 'warning', title: 'Campos incompletos', text: 'Cédula y Nombre son obligatorios', background: 'var(--bg)', color: 'var(--text)' });
+        return;
+    }
+
+    if (!data.id && !data.password) {
+        Swal.fire({ icon: 'warning', title: 'Contraseña requerida', text: 'Debes asignar una contraseña para nuevos usuarios', background: 'var(--bg)', color: 'var(--text)' });
+        return;
+    }
     await fetch('api.php?action=save_user', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
@@ -1277,9 +1299,19 @@ function editBusiness(id) {
     openBusinessModal(b); 
 }
 
-function editUser(id) { 
-    const u = allUsers.find(x => x.id == id);
-    openUserModal(u); 
+function editUser(userOrId) { 
+    if (typeof userOrId === 'object' && userOrId !== null) {
+        openUserModal(userOrId);
+    } else {
+        const u = allUsers.find(x => x.id == userOrId);
+        if (u) {
+            openUserModal(u);
+        } else {
+            // Reintentar buscando como string si falló
+            const u2 = allUsers.find(x => String(x.id) === String(userOrId));
+            openUserModal(u2 || null);
+        }
+    }
 }
 
 async function deleteBusiness(id) {
