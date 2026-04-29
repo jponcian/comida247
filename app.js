@@ -529,7 +529,7 @@ async function loadKitchenOrders() {
                 <div class="order-details">
                     ${groupedItems.map(i => `
                         <div style="margin-bottom: 0.3rem;">
-                            <strong>${i.quantity > 1 ? `<span style="color: var(--secondary); font-size: 1.1rem;">${i.quantity} x </span>` : '• '}${i.name}</strong> 
+                            <strong><span style="color: var(--secondary); font-size: 1.1rem;">${i.quantity} x </span>${i.name}</strong> 
                             ${i.ingredients.length ? `<span class="extras-preview">(${i.ingredients.map(ing => ing.name).join(', ')})</span>` : ''}
                             ${i.observations ? `<div style="margin-left: 1rem; font-size: 0.9rem; color: var(--accent); font-style: italic;">↳ ${i.observations}</div>` : ''}
                         </div>
@@ -620,7 +620,7 @@ async function loadPaymentOrders() {
         const groupedItems = getGroupedItems(o.items);
         const itemsHtml = groupedItems.map(i => `
             <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 2px;">
-                • ${i.quantity}x ${i.name}
+                ${i.quantity} x ${i.name}
             </div>
         `).join('');
 
@@ -1064,7 +1064,7 @@ async function loadHistory() {
                 </div>
                 <div class="order-details">
                     <div style="font-size: 0.85rem; margin-bottom: 0.5rem;">
-                        ${o.items.map(i => `• ${i.quantity}x ${i.name}`).join('<br>')}
+                        ${o.items.map(i => `${i.quantity} x ${i.name}`).join('<br>')}
                     </div>
                     <div style="font-weight: 800; color: var(--secondary);">Total: $${parseFloat(o.total_usd).toFixed(2)}</div>
                     <div style="font-size: 0.75rem; color: var(--text-muted);">${new Date(o.created_at).toLocaleTimeString()}</div>

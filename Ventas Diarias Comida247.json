@@ -12,13 +12,13 @@
           ]
         }
       },
-      "id": "27bc22bc-7755-4e4e-a1c7-414dd8944bd7",
+      "id": "5bf8ddaa-21f2-4a81-933b-b2d2cd4348ff",
       "name": "Schedule Trigger (11:50 PM)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
       "position": [
-        1552,
-        -400
+        3264,
+        -320
       ]
     },
     {
@@ -26,13 +26,13 @@
         "url": "https://comida.ventas247.com.ve/api.php?action=get_daily_report&token=optimus_n8n&business_id=1",
         "options": {}
       },
-      "id": "07ad233a-3971-4942-8663-28e8c1d9dabe",
+      "id": "77ce52c8-acf5-409f-a090-8a2828a81abc",
       "name": "Obtener Datos de Ventas",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1792,
-        -384
+        3504,
+        -304
       ]
     },
     {
@@ -50,45 +50,45 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"584144679693\",\n  \"text\": \"{{ $node[\\\"Basic LLM Chain\\\"].json.text }}\",\n  \"delay\": 1200\n}\n",
+        "jsonBody": "={\n  \"number\": \"584144679693\",\n  \"text\": {{ JSON.stringify($json.text) }},\n  \"delay\": 1200\n}\n",
         "options": {}
       },
-      "id": "1056a022-8e2f-4296-a982-04f8a746ee84",
+      "id": "993be11c-3639-4b89-bd18-18bc781dd547",
       "name": "Enviar WhatsApp",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        2416,
-        -352
+        4128,
+        -272
       ]
     },
     {
       "parameters": {
-        "prompt": "=Eres el asistente virtual de 'Los Calidad'. Genera un resumen ejecutivo y entusiasta para WhatsApp basado en estos datos del día:\n\n📅 Fecha: {{ $json.date }}\n💰 Ventas Totales: {{ $json.summary.revenue_usd }}$\n📦 Total Pedidos: {{ $json.summary.order_count }}\n🏆 Top Productos: {{ JSON.stringify($json.products) }}\n\nInstrucciones:\n1. Usa emojis adecuados.\n2. Destaca el producto más vendido.\n3. Termina con un mensaje motivador para el equipo.\n4. Mantén un tono profesional pero muy amable.\n5. El formato debe ser limpio para lectura en móvil.",
-        "promptSource": "define"
+        "promptType": "define",
+        "text": "=Eres el asistente virtual de 'Los Calidad'. Genera un resumen ejecutivo y entusiasta para WhatsApp basado en estos datos de ventas de hoy:\\n\\n📅 *Fecha:* {{ $json.date }}\\n💰 *Ventas Totales:* {{ $json.summary.revenue_usd }}$\\n📦 *Total Pedidos:* {{ $json.summary.order_count }}\\n🏆 *Top Productos:* {{ JSON.stringify($json.products) }}\\n\\n\\n*Instrucciones MUY IMPORTANTES:* \\n1. Usa emojis adecuados.\\n2. Destaca el producto más vendido.\\n3. Termina con un mensaje motivador para el equipo.\\n4. Mantén un tono profesional pero muy amable.\\n5. El formato debe ser limpio para lectura en móvil.\\n6. PROHIBIDO incluir textos introductorios como 'Aquí tienes una propuesta' o 'Este es el resumen'. Comienza directamente con el mensaje final para WhatsApp."
       },
+      "id": "110a5acc-5c3c-41a6-a785-6a67e41df160",
+      "name": "Basic LLM Chain",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.9,
+      "typeVersion": 1.4,
       "position": [
-        2016,
-        -368
-      ],
-      "id": "9af2944e-7ecb-4fd8-b72a-7c925dc35257",
-      "name": "Basic LLM Chain"
+        3728,
+        -288
+      ]
     },
     {
       "parameters": {
         "model": "gemma4:31b",
         "options": {}
       },
+      "id": "3dd7161b-0047-4a56-a72a-4af8c6ba6acf",
+      "name": "Ollama Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
       "typeVersion": 1,
       "position": [
-        1968,
-        -160
+        3680,
+        -80
       ],
-      "id": "5c8b8d6c-d97b-4dc9-bea8-72574a6d1971",
-      "name": "Ollama Chat Model",
       "credentials": {
         "ollamaApi": {
           "id": "n3M3huMYAXx9T7Qh",
@@ -149,7 +149,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "4cbd5acd-eeeb-419f-a768-1692b9d1e263",
+  "versionId": "2ee20b48-0e7b-4f59-bd70-2b0b5c07a93d",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "4d46900db2a9dbc3e4e0a206fdb9a2ed9d31e358eee1dbd0d07e169d4c02e50b"
