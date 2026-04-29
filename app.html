@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f1115">
     <title>Los Calidad - POS</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
@@ -128,7 +129,7 @@
                     <button class="btn-small btn-primary" onclick="searchCustomerByCedula()">🔍</button>
                 </div>
                 <input type="text" id="cust-name" placeholder="Nombre y Apellido" style="margin-bottom: 0.5rem;">
-                <input type="text" id="cust-phone" placeholder="Teléfono (WhatsApp)">
+                <input type="text" id="cust-phone" placeholder="Teléfono (WhatsApp)" inputmode="tel">
             </div>
 
             <div id="checkout-items" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;"></div>
@@ -168,9 +169,21 @@
             <input type="hidden" id="edit-product-id">
             <div class="input-group"><label>Nombre</label><input type="text" id="prod-name"></div>
             <div class="input-group"><label>Descripción</label><input type="text" id="prod-desc"></div>
-            <div class="input-group"><label>Precio USD</label><input type="number" step="0.01" id="prod-price"></div>
+            <div class="input-group"><label>Precio USD</label><input type="number" step="0.01" id="prod-price" inputmode="decimal"></div>
             <div class="input-group"><label>Categoría</label><input type="text" id="prod-cat"></div>
-            <div class="input-group"><label>URL Imagen</label><input type="text" id="prod-img"></div>
+            <div class="input-group">
+                <label>Imagen del Producto</label>
+                <div class="image-upload-container">
+                    <img id="prod-img-preview" src="" alt="Vista previa" style="display: none;">
+                    <div class="upload-controls">
+                        <button type="button" class="btn-upload" onclick="document.getElementById('prod-img-file').click()">
+                            <span>📷 Subir Imagen</span>
+                        </button>
+                        <input type="file" id="prod-img-file" accept="image/*" style="display: none;" onchange="previewProductImage(this)">
+                        <input type="text" id="prod-img" placeholder="O pega una URL externa...">
+                    </div>
+                </div>
+            </div>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal('modal-product')">Cancelar</button>
                 <button class="btn-confirm" onclick="saveProduct()">Guardar</button>
@@ -192,7 +205,7 @@
                 </div>
             </div>
             <div class="input-group"><label>Nombre y Apellido</label><input type="text" id="user-name"></div>
-            <div class="input-group"><label>Teléfono</label><input type="text" id="user-phone"></div>
+            <div class="input-group"><label>Teléfono</label><input type="text" id="user-phone" inputmode="tel"></div>
             <div class="input-group"><label>Contraseña</label><input type="password" id="user-pass"></div>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal('modal-user')">Cancelar</button>
@@ -211,7 +224,7 @@
             </div>
             <div class="input-group">
                 <label>Precio USD</label>
-                <input type="number" step="0.01" id="ing-price" placeholder="0.00">
+                <input type="number" step="0.01" id="ing-price" placeholder="0.00" inputmode="decimal">
             </div>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal('modal-ingredient')">Cancelar</button>
@@ -253,7 +266,7 @@
             <div class="input-group">
                 <label>Añadir Pago</label>
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <input type="text" id="pay-amount" placeholder="Monto" oninput="formatMoneyInput(this)" onfocus="this.select()" style="flex: 2;">
+                    <input type="text" id="pay-amount" placeholder="Monto" oninput="formatMoneyInput(this)" onfocus="this.select()" style="flex: 2;" inputmode="numeric">
                     <select id="pay-currency" style="flex: 1;" onchange="updateDefaultPaymentAmount()">
                         <option value="VES" selected>Bs VES</option>
                         <option value="USD">$ USD</option>

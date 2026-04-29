@@ -1369,6 +1369,18 @@ function playNotificationSound() {
 }
 
 // --- CRUD Admin (Simplificado para el ejemplo) ---
+function previewProductImage(input) {
+    const preview = document.getElementById('prod-img-preview');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
 function editProduct(id) {
     const prod = allProducts.find(p => p.id == id);
     if (prod) openProductModal(prod);
@@ -1382,23 +1394,79 @@ function openProductModal(prod = null) {
     document.getElementById('prod-price').value = prod ? prod.price_usd : '';
     document.getElementById('prod-cat').value = prod ? prod.category : '';
     document.getElementById('prod-img').value = prod ? prod.image_url : '';
+    
+    // Resetear file input y previsualización
+    document.getElementById('prod-img-file').value = '';
+    const preview = document.getElementById('prod-img-preview');
+    if (prod && prod.image_url) {
+        preview.src = prod.image_url;
+        preview.style.display = 'block';
+    } else {
+        preview.src = '';
+        preview.style.display = 'none';
+    }
+    
     document.getElementById('modal-product').style.display = 'flex';
 }
 
 async function saveProduct() {
+    const btn = event.currentTarget;
+    const oldBtnContent = btn.innerHTML;
+    
+    const fileInput = document.getElementById('prod-img-file');
+    let imageUrl = document.getElementById('prod-img').value;
+
+    // Si hay un archivo seleccionado, subirlo primero
+    if (fileInput.files.length > 0) {
+        btn.innerHTML = '⌛ Subiendo...';
+        btn.disabled = true;
+        
+        const formData = new FormData();
+        formData.append('image', fileInput.files[0]);
+        
+        try {
+            const uploadRes = await fetch('api.php?action=upload_image', {
+                method: 'POST',
+                body: formData
+            });
+            const uploadData = await uploadRes.json();
+            if (uploadData.success) {
+                imageUrl = uploadData.url;
+            } else {
+                Swal.fire({ icon: 'error', title: 'Error de subida', text: uploadData.error });
+                btn.innerHTML = oldBtnContent;
+                btn.disabled = false;
+                return;
+            }
+        } catch (e) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Error de conexión al subir la imagen' });
+            btn.innerHTML = oldBtnContent;
+            btn.disabled = false;
+            return;
+        }
+    }
+
     const data = {
         id: document.getElementById('edit-product-id').value || undefined,
         name: document.getElementById('prod-name').value,
         description: document.getElementById('prod-desc').value,
         price_usd: document.getElementById('prod-price').value,
         category: document.getElementById('prod-cat').value,
-        image_url: document.getElementById('prod-img').value
+        image_url: imageUrl
     };
+
+    btn.innerHTML = '⌛ Guardando...';
+    btn.disabled = true;
+
     await fetch('api.php?action=save_product', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data) 
     });
+
+    btn.innerHTML = oldBtnContent;
+    btn.disabled = false;
+
     Swal.fire({
         title: '¡Guardado!',
         text: 'El producto ha sido actualizado.',

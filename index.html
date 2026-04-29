@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0b0d11">
     <title>Login - Los Calidad</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
@@ -31,7 +32,7 @@
                 <label for="cedula">Cédula</label>
                 <div class="input-wrapper">
                     <i class="fas fa-id-card"></i>
-                    <input type="text" id="cedula" placeholder="12345678" autocomplete="username">
+                    <input type="text" id="cedula" placeholder="12345678" autocomplete="username" inputmode="numeric" pattern="[0-9]*">
                 </div>
             </div>
 

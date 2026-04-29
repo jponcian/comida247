@@ -46,6 +46,28 @@ switch ($action) {
         echo json_encode(['success' => true]);
         break;
 
+    case 'upload_image':
+        if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
+        if (!isset($_FILES['image'])) die(json_encode(['error' => 'No se subió ninguna imagen']));
+        
+        $file = $_FILES['image'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+        
+        if (!in_array($ext, $allowed)) {
+            die(json_encode(['error' => 'Formato no permitido. Solo JPG, PNG y WEBP.']));
+        }
+
+        $newName = uniqid() . '_' . time() . '.' . $ext;
+        $target = __DIR__ . '/' . $newName;
+        
+        if (move_uploaded_file($file['tmp_name'], $target)) {
+            echo json_encode(['success' => true, 'url' => $newName]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Error al guardar el archivo en el servidor.']);
+        }
+        break;
+
     case 'delete_product':
         if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
         $data = json_decode(file_get_contents('php://input'), true);
