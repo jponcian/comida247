@@ -275,8 +275,8 @@ switch ($action) {
     case 'process_payment':
         $data = json_decode(file_get_contents('php://input'), true);
         $id = $data['id'];
-        // Marcar como pagado
-        $pdo->prepare("UPDATE orders SET is_paid = 1 WHERE id = ?")->execute([$id]);
+        // Marcar como pagado y si es para comer aquí, finalizar de una vez
+        $pdo->prepare("UPDATE orders SET is_paid = 1, status = IF(order_type = 'comer_aqui' AND status = 'listo', 'cobrado', status) WHERE id = ?")->execute([$id]);
         echo json_encode(['success' => true]);
         break;
 
@@ -441,12 +441,12 @@ switch ($action) {
         if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
         
         // 1. Ventas diarias (últimos 7 días)
-        $stmt = $pdo->prepare("SELECT DATE(created_at) as date, SUM(total_usd) as total FROM orders WHERE business_id = ? AND status = 'cobrado' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(created_at) ORDER BY date ASC");
+        $stmt = $pdo->prepare("SELECT DATE(created_at) as date, SUM(total_usd) as total FROM orders WHERE business_id = ? AND is_paid = 1 AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(created_at) ORDER BY date ASC");
         $stmt->execute([$business_id]);
         $sales_daily = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // 2. Productos más vendidos (Top 5)
-        $stmt = $pdo->prepare("SELECT p.name, SUM(oi.quantity) as total_qty FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id WHERE o.business_id = ? AND o.status = 'cobrado' GROUP BY p.id ORDER BY total_qty DESC LIMIT 5");
+        $stmt = $pdo->prepare("SELECT p.name, SUM(oi.quantity) as total_qty FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id WHERE o.business_id = ? AND o.is_paid = 1 GROUP BY p.id ORDER BY total_qty DESC LIMIT 5");
         $stmt->execute([$business_id]);
         $top_products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -466,12 +466,12 @@ switch ($action) {
         $date = $_GET['date'] ?? date('Y-m-d');
         
         // Estadísticas generales del día
-        $stmt = $pdo->prepare("SELECT SUM(total_usd) as total_usd, COUNT(*) as total_orders FROM orders WHERE business_id = ? AND DATE(created_at) = ? AND status = 'cobrado'");
+        $stmt = $pdo->prepare("SELECT SUM(total_usd) as total_usd, COUNT(*) as total_orders FROM orders WHERE business_id = ? AND DATE(created_at) = ? AND is_paid = 1");
         $stmt->execute([$business_id, $date]);
         $stats = $stmt->fetch(PDO::FETCH_ASSOC);
 
         // Top productos del día
-        $stmt = $pdo->prepare("SELECT p.name, SUM(oi.quantity) as qty FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id WHERE o.business_id = ? AND DATE(o.created_at) = ? AND o.status = 'cobrado' GROUP BY p.id ORDER BY qty DESC");
+        $stmt = $pdo->prepare("SELECT p.name, SUM(oi.quantity) as qty FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id WHERE o.business_id = ? AND DATE(o.created_at) = ? AND o.is_paid = 1 GROUP BY p.id ORDER BY qty DESC");
         $stmt->execute([$business_id, $date]);
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

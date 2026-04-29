@@ -12,13 +12,13 @@
           ]
         }
       },
-      "id": "3ca359db-5ac2-4f67-b4d6-504d92e2ff66",
+      "id": "27bc22bc-7755-4e4e-a1c7-414dd8944bd7",
       "name": "Schedule Trigger (11:50 PM)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
       "position": [
-        200,
-        300
+        1552,
+        -400
       ]
     },
     {
@@ -26,28 +26,13 @@
         "url": "https://comida.ventas247.com.ve/api.php?action=get_daily_report&token=optimus_n8n&business_id=1",
         "options": {}
       },
-      "id": "522a5624-3403-4459-bbad-dc8e35c8be23",
+      "id": "07ad233a-3971-4942-8663-28e8c1d9dabe",
       "name": "Obtener Datos de Ventas",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        420,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "=Eres el asistente virtual de 'Los Calidad'. Genera un resumen ejecutivo, creativo y entusiasta para WhatsApp basado en estos datos del día:\n\n📅 Fecha: {{ $json.date }}\n💰 Ventas Totales: {{ $json.summary.revenue_usd }}$\n📦 Total Pedidos: {{ $json.summary.order_count }}\n🏆 Top Productos: {{ JSON.stringify($json.products) }}\n\nInstrucciones:\n1. Usa emojis adecuados.\n2. Destaca el producto más vendido.\n3. Termina con un mensaje motivador para el equipo.\n4. Mantén un tono profesional pero muy amable.\n5. El formato debe ser limpio para lectura en móvil.",
-        "options": {}
-      },
-      "id": "gemini-ai-node",
-      "name": "IA Resumen Creativo",
-      "type": "n8n-nodes-base.googleGemini",
-      "typeVersion": 1,
-      "position": [
-        640,
-        300
+        1792,
+        -384
       ]
     },
     {
@@ -65,19 +50,54 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"584144679693\",\n  \"text\": \"{{ $node[\\\"IA Resumen Creativo\\\"].json.text }}\",\n  \"delay\": 1200\n}\n",
+        "jsonBody": "={\n  \"number\": \"584144679693\",\n  \"text\": \"{{ $node[\\\"Basic LLM Chain\\\"].json.text }}\",\n  \"delay\": 1200\n}\n",
         "options": {}
       },
-      "id": "42ec4d07-42cb-4ea8-b8b9-d134ad5885cd",
+      "id": "1056a022-8e2f-4296-a982-04f8a746ee84",
       "name": "Enviar WhatsApp",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        860,
-        300
+        2416,
+        -352
       ]
+    },
+    {
+      "parameters": {
+        "prompt": "=Eres el asistente virtual de 'Los Calidad'. Genera un resumen ejecutivo y entusiasta para WhatsApp basado en estos datos del día:\n\n📅 Fecha: {{ $json.date }}\n💰 Ventas Totales: {{ $json.summary.revenue_usd }}$\n📦 Total Pedidos: {{ $json.summary.order_count }}\n🏆 Top Productos: {{ JSON.stringify($json.products) }}\n\nInstrucciones:\n1. Usa emojis adecuados.\n2. Destaca el producto más vendido.\n3. Termina con un mensaje motivador para el equipo.\n4. Mantén un tono profesional pero muy amable.\n5. El formato debe ser limpio para lectura en móvil.",
+        "promptSource": "define"
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2016,
+        -368
+      ],
+      "id": "9af2944e-7ecb-4fd8-b72a-7c925dc35257",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "gemma4:31b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1968,
+        -160
+      ],
+      "id": "5c8b8d6c-d97b-4dc9-bea8-72574a6d1971",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "n3M3huMYAXx9T7Qh",
+          "name": "Ollama account"
+        }
+      }
     }
   ],
+  "pinData": {},
   "connections": {
     "Schedule Trigger (11:50 PM)": {
       "main": [
@@ -90,18 +110,29 @@
         ]
       ]
     },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Obtener Datos de Ventas": {
       "main": [
         [
           {
-            "node": "IA Resumen Creativo",
+            "node": "Basic LLM Chain",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "IA Resumen Creativo": {
+    "Basic LLM Chain": {
       "main": [
         [
           {
@@ -113,11 +144,16 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   },
+  "versionId": "4cbd5acd-eeeb-419f-a768-1692b9d1e263",
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "4d46900db2a9dbc3e4e0a206fdb9a2ed9d31e358eee1dbd0d07e169d4c02e50b"
-  }
+  },
+  "id": "CmyDl1OGLSnQtobS",
+  "tags": []
 }
