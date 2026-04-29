@@ -516,14 +516,14 @@ async function loadKitchenOrders() {
         const isPaid = parseInt(o.is_paid) === 1;
         return `
             <div class="order-card ${o.status === 'preparando' ? 'preparing' : ''} ${o.status === 'listo' ? 'ready' : ''}">
-                <div class="order-header">
-                    <div>
-                        <strong>#${o.id} - ${o.customer_name}</strong>
-                        ${o.table_number ? `<div style="font-size: 0.9rem; color: var(--primary);">📍 Mesa: ${o.table_number}</div>` : ''}
-                    </div>
-                    <div style="display: flex; gap: 0.3rem;">
-                        ${isPaid ? '<span class="paid-badge">Pagado</span>' : ''}
+                <div class="order-header" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                         <span class="badge ${o.status}">${o.status.toUpperCase()}</span>
+                        ${isPaid ? '<span class="paid-badge">Pagado</span>' : ''}
+                    </div>
+                    <div style="width: 100%; word-break: break-word;">
+                        <strong style="font-size: 1.3rem; display: block; line-height: 1.2;">#${o.id} - ${o.customer_name}</strong>
+                        ${o.table_number ? `<div style="font-size: 0.9rem; color: var(--primary); margin-top: 0.3rem;">📍 Mesa: ${o.table_number}</div>` : ''}
                     </div>
                 </div>
                 <div class="order-details">
@@ -540,7 +540,7 @@ async function loadKitchenOrders() {
                     <button class="btn-status" style="flex: 2;" onclick="updateOrderStatus(${o.id}, '${o.status === 'pendiente' ? 'preparando' : 'listo'}')">
                         ${o.status === 'pendiente' ? '👩‍🍳 Empezar' : '✅ Listo'}
                     </button>
-                    <button class="btn-small" style="flex: 1;" onclick="editExistingOrder(${JSON.stringify(o).replace(/"/g, '&quot;')})">✏️ Editar</button>
+                    <button class="btn-status" style="flex: 1; background: rgba(255,255,255,0.1); color: white;" onclick="editExistingOrder(${JSON.stringify(o).replace(/\"/g, '&quot;')})">✏️ Editar</button>
                 </div>
             </div>
         `;
@@ -655,7 +655,7 @@ async function loadPaymentOrders() {
                         ${isPaid ? '✅ Pagado' : '💵 Pagar'}
                     </button>
 
-                    ${actionBtn || `<button class="btn-small" onclick="editExistingOrder(${JSON.stringify(o).replace(/"/g, '&quot;')})">✏️ Editar</button>`}
+                    ${actionBtn || `<button class="btn-pay" style="background: rgba(255,255,255,0.1); color: white; box-shadow: none;" onclick="editExistingOrder(${JSON.stringify(o).replace(/\"/g, '&quot;')})">✏️ Editar</button>`}
                 </div>
             </div>
         `;

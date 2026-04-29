@@ -580,11 +580,11 @@ textarea:focus {
 .btn-status {
     width: 100%;
     margin-top: auto;
-    padding: 1.2rem;
-    border-radius: 15px;
+    padding: 0.8rem;
+    border-radius: 12px;
     border: none;
-    font-weight: 800;
-    font-size: 1.1rem;
+    font-weight: 700;
+    font-size: 0.85rem;
     cursor: pointer;
     text-transform: uppercase;
     transition: 0.2s;
@@ -803,7 +803,7 @@ select {
     background: rgba(255, 255, 255, 0.08);
     color: white;
     display: flex;
-    color: var(--danger);
+    justify-content: center;
 }
 
 .btn-small.btn-cancel:hover {
@@ -913,7 +913,7 @@ select {
     background: linear-gradient(135deg, var(--primary), #ffb700);
     color: white;
     border: none;
-    font-weight: 800;
+    font-weight: 700;
     box-shadow: 0 8px 20px rgba(255, 140, 0, 0.2);
 
     border-radius: 12px;
@@ -924,7 +924,7 @@ select {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    font-size: 1rem;
+    font-size: 0.9rem;
 }
 
 .btn-pay:hover {
