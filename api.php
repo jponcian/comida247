@@ -60,10 +60,10 @@ switch ($action) {
         }
 
         $newName = uniqid() . '_' . time() . '.' . $ext;
-        $target = __DIR__ . '/' . $newName;
+        $target = __DIR__ . '/uploads/' . $newName;
         
         if (move_uploaded_file($file['tmp_name'], $target)) {
-            echo json_encode(['success' => true, 'url' => $newName]);
+            echo json_encode(['success' => true, 'url' => 'uploads/' . $newName]);
         } else {
             echo json_encode(['success' => false, 'error' => 'Error al guardar el archivo en el servidor.']);
         }
