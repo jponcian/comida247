@@ -18,7 +18,7 @@
 
             <button id="nav-cocina" onclick="showSection('cocina')">Cocina <span id="badge-kitchen" class="nav-badge" style="display: none;">0</span></button>
             <button id="nav-caja" onclick="showSection('caja')">Caja <span id="badge-caja" class="nav-badge" style="display: none;">0</span></button>
-            <button id="nav-historial" style="display:none" onclick="showSection('historial')">Historial</button>
+            <button id="nav-historial" style="display:none" onclick="showSection('historial')">Reportes</button>
             <button id="nav-dashboard" style="display:none" onclick="showSection('dashboard')">Dashboard</button>
             <button id="nav-admin" style="display:none" onclick="showSection('admin')">Admin</button>
             <button id="nav-super" style="display:none" onclick="showSection('super')">Super</button>
@@ -45,8 +45,11 @@
 
         <!-- SECCIÓN DASHBOARD -->
         <section id="dashboard" class="view-section">
-            <div class="section-header">
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                 <h2>Dashboard de Estadísticas</h2>
+                <button class="btn-pay" onclick="llamarN8n()" style="padding: 0.8rem 1.5rem; font-size: 0.95rem; gap: 0.5rem; width: auto; max-width: 300px;">
+                    🤖 Generar Reporte IA
+                </button>
             </div>
             <div class="dashboard-grid">
                 <div class="chart-container">
@@ -67,7 +70,7 @@
         <!-- SECCIÓN HISTORIAL -->
         <section id="historial" class="view-section">
             <div class="section-header" style="flex-wrap: wrap; gap: 1rem; margin-bottom: 2.5rem;">
-                <h2>Historial de Ventas</h2>
+                <h2>Reportes y Ventas</h2>
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; flex: 1; justify-content: flex-start;">
                     <input type="date" id="history-date" onchange="loadHistory()" style="width: auto;">
                     <select id="history-status" onchange="loadHistory()" style="width: auto;">

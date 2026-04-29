@@ -12,13 +12,13 @@
           ]
         }
       },
-      "id": "5bf8ddaa-21f2-4a81-933b-b2d2cd4348ff",
+      "id": "d9465bcc-685e-4000-97c4-71fc472998e9",
       "name": "Schedule Trigger (11:50 PM)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
       "position": [
-        3264,
-        -320
+        5520,
+        288
       ]
     },
     {
@@ -26,13 +26,13 @@
         "url": "https://comida.ventas247.com.ve/api.php?action=get_daily_report&token=optimus_n8n&business_id=1",
         "options": {}
       },
-      "id": "77ce52c8-acf5-409f-a090-8a2828a81abc",
+      "id": "afb271ae-6538-4f72-925a-740af521b128",
       "name": "Obtener Datos de Ventas",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        3504,
-        -304
+        5760,
+        304
       ]
     },
     {
@@ -53,13 +53,13 @@
         "jsonBody": "={\n  \"number\": \"584144679693\",\n  \"text\": {{ JSON.stringify($json.text) }},\n  \"delay\": 1200\n}\n",
         "options": {}
       },
-      "id": "993be11c-3639-4b89-bd18-18bc781dd547",
+      "id": "ffc505e6-f41b-4f36-bad3-e03ea4ed8301",
       "name": "Enviar WhatsApp",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        4128,
-        -272
+        6384,
+        336
       ]
     },
     {
@@ -67,13 +67,13 @@
         "promptType": "define",
         "text": "=Eres el asistente virtual de 'Los Calidad'. Genera un resumen ejecutivo y entusiasta para WhatsApp basado en estos datos de ventas de hoy:\\n\\n📅 *Fecha:* {{ $json.date }}\\n💰 *Ventas Totales:* {{ $json.summary.revenue_usd }}$\\n📦 *Total Pedidos:* {{ $json.summary.order_count }}\\n🏆 *Top Productos:* {{ JSON.stringify($json.products) }}\\n\\n\\n*Instrucciones MUY IMPORTANTES:* \\n1. Usa emojis adecuados.\\n2. Destaca el producto más vendido.\\n3. Termina con un mensaje motivador para el equipo.\\n4. Mantén un tono profesional pero muy amable.\\n5. El formato debe ser limpio para lectura en móvil.\\n6. PROHIBIDO incluir textos introductorios como 'Aquí tienes una propuesta' o 'Este es el resumen'. Comienza directamente con el mensaje final para WhatsApp."
       },
-      "id": "110a5acc-5c3c-41a6-a785-6a67e41df160",
+      "id": "a4a35763-8149-4e5c-a7d4-8cf580465283",
       "name": "Basic LLM Chain",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4,
       "position": [
-        3728,
-        -288
+        5984,
+        320
       ]
     },
     {
@@ -81,13 +81,13 @@
         "model": "gemma4:31b",
         "options": {}
       },
-      "id": "3dd7161b-0047-4a56-a72a-4af8c6ba6acf",
+      "id": "52d6ce59-3861-4362-ada7-a43f3eb2af9e",
       "name": "Ollama Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
       "typeVersion": 1,
       "position": [
-        3680,
-        -80
+        5936,
+        528
       ],
       "credentials": {
         "ollamaApi": {
@@ -95,11 +95,37 @@
           "name": "Ollama account"
         }
       }
+    },
+    {
+      "parameters": {
+        "path": "generar-reporte-whatsapp",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-btn-manual",
+      "name": "Webhook Manual",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        5520,
+        488
+      ]
     }
   ],
   "pinData": {},
   "connections": {
     "Schedule Trigger (11:50 PM)": {
+      "main": [
+        [
+          {
+            "node": "Obtener Datos de Ventas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Manual": {
       "main": [
         [
           {
@@ -144,12 +170,18 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "6TkmtpUOsunzMZah",
+    "timezone": "America/Caracas",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": -1,
+    "availableInMCP": false
   },
-  "versionId": "2ee20b48-0e7b-4f59-bd70-2b0b5c07a93d",
+  "versionId": "738a45bd-153f-4456-af50-cf5ec8072030",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "4d46900db2a9dbc3e4e0a206fdb9a2ed9d31e358eee1dbd0d07e169d4c02e50b"

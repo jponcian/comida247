@@ -1747,7 +1747,11 @@ function renderHoursChart(data) {
     if (charts.hours) charts.hours.destroy();
     
     // Preparar las 24 horas
-    const labels = Array.from({length: 24}, (_, i) => `${i}:00`);
+    const labels = Array.from({length: 24}, (_, i) => {
+        const ampm = i >= 12 ? 'PM' : 'AM';
+        const hours = i % 12 || 12;
+        return `${hours}:00 ${ampm}`;
+    });
     const values = new Array(24).fill(0);
     data.forEach(d => {
         values[parseInt(d.hour)] = parseInt(d.total_orders);
@@ -1775,4 +1779,27 @@ function renderHoursChart(data) {
             }
         }
     });
+}
+
+async function llamarN8n() {
+    Swal.fire({
+        title: 'Generando Reporte...',
+        text: 'Por favor espera mientras la Inteligencia Artificial analiza los datos...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+    
+    try {
+        const response = await fetch('http://178.104.106.5:5678/webhook/generar-reporte-whatsapp', { 
+            method: 'GET' 
+        });
+        
+        if(response.ok) {
+            Swal.fire('¡Enviado!', 'El reporte fue generado y enviado por WhatsApp exitosamente.', 'success');
+        } else {
+            throw new Error('Error en el servidor');
+        }
+    } catch (e) {
+        Swal.fire('Error', 'No se pudo conectar con el Webhook de n8n. Revisa si el flujo está activo.', 'error');
+    }
 }
