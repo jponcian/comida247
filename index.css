@@ -36,13 +36,15 @@
 /* Login Page Specific Styles */
 .login-page {
     background-color: var(--login-bg);
-    height: 100vh;
-    width: 100vw;
+    min-height: 100vh;
+    width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
     overflow: hidden;
     position: relative;
+    margin: 0;
+    padding: 0;
 }
 
 .bg-blobs {
@@ -102,6 +104,7 @@
     width: 100%;
     max-width: 440px;
     padding: 20px;
+    margin: auto;
 }
 
 .login-card {
