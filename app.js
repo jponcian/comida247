@@ -717,10 +717,11 @@ function formatOrderType(type) {
 function getGroupedItems(items) {
     const grouped = [];
     items.forEach(item => {
+        const ingredients = item.ingredients || [];
         const itemKey = JSON.stringify({
             id: item.product_id,
             obs: item.observations,
-            extras: item.ingredients.map(ing => ing.ingredient_id).sort()
+            extras: ingredients.map(ing => ing.ingredient_id).sort()
         });
         
         const itemPrice = parseFloat(item.price_at_time || 0);
@@ -736,7 +737,7 @@ function getGroupedItems(items) {
                 name: item.name,
                 quantity: parseInt(item.quantity || 1),
                 unitPrice: unitPrice,
-                ingredients: item.ingredients,
+                ingredients: ingredients,
                 observations: item.observations
             });
         }
