@@ -177,7 +177,7 @@ switch ($action) {
         break;
 
     case 'get_history':
-        if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
+        if ($role !== 'administrador' && $role !== 'caja' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
         $date = $_GET['date'] ?? date('Y-m-d');
         $status = $_GET['status'] ?? '';
         $type = $_GET['type'] ?? '';
@@ -211,7 +211,7 @@ switch ($action) {
             $stmt->execute([$order['id']]);
             $order['items'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
-        echo json_encode($orders);
+        echo json_encode(['orders' => $orders, 'debug' => ['date' => $date, 'business_id' => $business_id]]);
         break;
     case 'create_order':
     case 'update_order':
@@ -219,8 +219,13 @@ switch ($action) {
         $pdo->beginTransaction();
         try {
             if ($action === 'create_order') {
-                $stmt = $pdo->prepare("INSERT INTO orders (business_id, customer_name, customer_phone, order_type, table_number, total_usd, observations) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$business_id, $data['customer_name'], $data['customer_phone'], $data['order_type'], $data['table_number'] ?? null, $data['total_usd'], $data['observations']]);
+                // Obtener el siguiente número del día
+                $stmt_num = $pdo->prepare("SELECT COALESCE(MAX(daily_number), 0) + 1 as next_num FROM orders WHERE business_id = ? AND DATE(created_at) = CURRENT_DATE");
+                $stmt_num->execute([$business_id]);
+                $daily_number = $stmt_num->fetch(PDO::FETCH_ASSOC)['next_num'];
+
+                $stmt = $pdo->prepare("INSERT INTO orders (business_id, daily_number, customer_name, customer_phone, order_type, table_number, total_usd, observations) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$business_id, $daily_number, $data['customer_name'], $data['customer_phone'], $data['order_type'], $data['table_number'] ?? null, $data['total_usd'], $data['observations']]);
                 $order_id = $pdo->lastInsertId();
             } else {
                 $order_id = $data['id'];

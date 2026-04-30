@@ -82,8 +82,9 @@ CREATE TABLE IF NOT EXISTS orders (
     table_number VARCHAR(10) NULL,
     total_usd DECIMAL(10, 2) NOT NULL,
     observations TEXT,
-    status ENUM('pendiente', 'preparando', 'listo', 'cobrado') DEFAULT 'pendiente',
+    status ENUM('pendiente', 'preparando', 'listo', 'cobrado', 'despachado') DEFAULT 'pendiente',
     is_paid BOOLEAN DEFAULT FALSE,
+    daily_number INT DEFAULT 0,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

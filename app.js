@@ -9,6 +9,7 @@ let standbyOrders = JSON.parse(localStorage.getItem('standbyOrders') || '[]');
 let lastKnownOrderId = 0;
 let allProducts = [];
 let currentUser = null;
+let cajaHistoryOrders = [];
 
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -52,11 +53,23 @@ function setupUIByRole(auth) {
     if (auth.user.is_super_admin) {
         document.getElementById('nav-super').style.display = 'block';
     }
+
+    if (userRole === 'cocina') {
+        document.getElementById('nav-pedidos').style.display = 'none';
+        document.getElementById('nav-caja').style.display = 'none';
+        showSection('cocina');
+    }
+
+    if (userRole === 'caja') {
+        document.getElementById('nav-pedidos').style.display = 'none';
+        document.getElementById('nav-cocina').style.display = 'none';
+        showSection('caja');
+    }
 }
 
 async function refreshData() {
     if (currentSection === 'cocina') loadKitchenOrders();
-    if (currentSection === 'caja') loadPaymentOrders();
+    if (currentSection === 'caja') { loadPaymentOrders(); loadCajaHistory(); }
 }
 
 async function loadProducts() {
@@ -525,7 +538,7 @@ async function loadKitchenOrders() {
                         ${isPaid ? '<span class="paid-badge">Pagado</span>' : ''}
                     </div>
                     <div style="width: 100%; word-break: break-word;">
-                        <strong style="font-size: 1.3rem; display: block; line-height: 1.2;">#${o.id} - ${o.customer_name}</strong>
+                        <strong style="font-size: 1.3rem; display: block; line-height: 1.2;">#${o.daily_number || o.id} - ${o.customer_name}</strong>
                         ${o.table_number ? `<div style="font-size: 0.9rem; color: var(--primary); margin-top: 0.3rem;">📍 Mesa: ${o.table_number}</div>` : ''}
                     </div>
                 </div>
@@ -540,10 +553,14 @@ async function loadKitchenOrders() {
                 </div>
                 ${o.observations ? `<p class="obs">Nota: ${o.observations}</p>` : ''}
                 <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-                    <button class="btn-status" style="flex: 2;" onclick="updateOrderStatus(${o.id}, '${o.status === 'pendiente' ? 'preparando' : 'listo'}')">
-                        ${o.status === 'pendiente' ? '👩‍🍳 Empezar' : '✅ Listo'}
-                    </button>
-                    <button class="btn-status" style="flex: 1; background: rgba(255,255,255,0.1); color: white;" onclick="editExistingOrder(${JSON.stringify(o).replace(/\"/g, '&quot;')})">✏️ Editar</button>
+                    ${userRole !== 'atencion' ? `
+                        <button class="btn-status" style="flex: 2;" onclick="updateOrderStatus(${o.id}, '${o.status === 'pendiente' ? 'preparando' : 'listo'}')">
+                            ${o.status === 'pendiente' ? '👩‍🍳 Empezar' : '✅ Listo'}
+                        </button>
+                    ` : ''}
+                    ${userRole !== 'cocina' ? `
+                        <button class="btn-status" style="flex: 1; background: rgba(255,255,255,0.1); color: white;" onclick="editExistingOrder(${JSON.stringify(o).replace(/\"/g, '&quot;')})">✏️ Editar</button>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -621,18 +638,32 @@ async function loadPaymentOrders() {
         }
 
         const groupedItems = getGroupedItems(o.items);
-        const itemsHtml = groupedItems.map(i => `
-            <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 2px;">
-                ${i.quantity} x ${i.name}
-            </div>
-        `).join('');
+        const itemsHtml = groupedItems.map(i => {
+            const subtotalUSD = i.quantity * i.unitPrice;
+            const subtotalBS = subtotalUSD * exchangeRate;
+            return `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 0.9rem; margin-bottom: 6px;">
+                    <div style="flex: 1;">
+                        <span style="color: var(--secondary); font-weight: 600;">${i.quantity} x</span> ${i.name}
+                        ${i.ingredients.length ? `<div style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">+ ${i.ingredients.map(ing => ing.name).join(', ')}</div>` : ''}
+                    </div>
+                    <div style="text-align: right; min-width: 100px;">
+                        <div style="font-weight: 600;">$${subtotalUSD.toFixed(2)}</div>
+                        <div style="font-size: 0.75rem; color: var(--primary);">Bs ${subtotalBS.toFixed(2)}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        const totalUSD = parseFloat(o.total_usd);
+        const totalBS = totalUSD * exchangeRate;
 
         return `
             <div class="order-card ${o.status === 'listo' ? 'ready-payment' : ''}">
                 <div class="order-header" style="flex-wrap: wrap; gap: 0.8rem; align-items: center;">
-                    <strong style="flex: 1; min-width: 200px; font-size: 1.1rem;">#${o.id} - ${o.customer_name}</strong>
+                    <strong style="flex: 1; min-width: 200px; font-size: 1.1rem;">#${o.daily_number || o.id} - ${o.customer_name}</strong>
                     <div style="display: flex; gap: 0.6rem; align-items: center; justify-content: flex-end; margin-left: auto;">
-                        ${!(isPaid && (o.status === 'listo' || o.status === 'cobrado')) ? 
+                        ${userRole !== 'atencion' && !(isPaid && (o.status === 'listo' || o.status === 'cobrado')) ? 
                             `<button class="btn-icon" onclick="confirmDeleteOrder(${o.id})" title="Eliminar Orden" style="color: var(--danger); font-size: 1.1rem; background: rgba(255, 77, 109, 0.1); width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,77,109,0.2);">🗑️</button>` 
                             : ''
                         }
@@ -645,20 +676,33 @@ async function loadPaymentOrders() {
                 </div>
 
                 <div class="order-details">
-                    <div style="margin-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
+                    <div style="margin-bottom: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
                         ${itemsHtml}
                     </div>
-                    <div style="margin-bottom:0.5rem">Tipo: <strong>${formatOrderType(o.order_type)}</strong> ${o.table_number ? `(Mesa: ${o.table_number})` : ''}</div>
-                    <div style="font-size: 1.5rem; color: var(--secondary); font-weight: 800;">
-                        Total: $${parseFloat(o.total_usd).toFixed(2)}
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; background: rgba(255,255,255,0.03); padding: 0.8rem; border-radius: 8px;">
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">
+                            Tipo: <strong>${formatOrderType(o.order_type)}</strong> ${o.table_number ? `(Mesa: ${o.table_number})` : ''}
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 1.5rem; color: var(--secondary); font-weight: 800; line-height: 1;">
+                                $${totalUSD.toFixed(2)}
+                            </div>
+                            <div style="font-size: 1rem; color: var(--primary); font-weight: 600; margin-top: 2px;">
+                                Bs ${totalBS.toFixed(2)}
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem;">
-                    <button class="btn-pay" ${isPaid ? 'disabled style="background: var(--success); color: white; box-shadow: none; opacity: 0.9; cursor: default;"' : ''} onclick="processPayment(${o.id}, '${o.order_type}')">
-                        ${isPaid ? '✅ Pagado' : '💵 Pagar'}
-                    </button>
+                    ${userRole !== 'atencion' ? `
+                        <button class="btn-pay" ${isPaid ? 'disabled style="background: var(--success); color: white; box-shadow: none; opacity: 0.9; cursor: default;"' : ''} onclick="processPayment(${o.id}, '${o.order_type}')">
+                            ${isPaid ? '✅ Pagado' : '💵 Pagar'}
+                        </button>
+                    ` : `<div></div>`}
 
-                    ${actionBtn || `<button class="btn-pay" style="background: rgba(255,255,255,0.1); color: white; box-shadow: none;" onclick="editExistingOrder(${JSON.stringify(o).replace(/\"/g, '&quot;')})">✏️ Editar</button>`}
+                    ${(userRole === 'caja') || (userRole === 'atencion' && (o.status === 'listo' || o.status === 'cobrado' || o.status === 'despachado')) ? '' : 
+                        (actionBtn || `<button class="btn-pay" style="background: rgba(255,255,255,0.1); color: white; box-shadow: none;" onclick="editExistingOrder(${JSON.stringify(o).replace(/\"/g, '&quot;')})">✏️ Editar</button>`)
+                    }
                 </div>
             </div>
         `;
@@ -679,6 +723,10 @@ function getGroupedItems(items) {
             extras: item.ingredients.map(ing => ing.ingredient_id).sort()
         });
         
+        const itemPrice = parseFloat(item.price_at_time || 0);
+        const extrasPrice = item.ingredients.reduce((sum, ing) => sum + parseFloat(ing.price_at_time || 0), 0);
+        const unitPrice = itemPrice + extrasPrice;
+
         const existing = grouped.find(gi => gi.key === itemKey);
         if (existing) {
             existing.quantity += parseInt(item.quantity || 1);
@@ -687,6 +735,7 @@ function getGroupedItems(items) {
                 key: itemKey,
                 name: item.name,
                 quantity: parseInt(item.quantity || 1),
+                unitPrice: unitPrice,
                 ingredients: item.ingredients,
                 observations: item.observations
             });
@@ -1031,7 +1080,7 @@ function showSection(id) {
 
     if (id === 'pedidos') loadProducts();
     if (id === 'cocina') loadKitchenOrders();
-    if (id === 'caja') loadPaymentOrders();
+    if (id === 'caja') { loadPaymentOrders(); loadCajaHistory(); }
     if (id === 'historial') {
         document.getElementById('history-date').valueAsDate = new Date();
         loadHistory();
@@ -1048,7 +1097,8 @@ async function loadHistory() {
     const search = document.getElementById('history-search').value;
     
     const res = await fetch(`api.php?action=get_history&date=${date}&status=${status}&type=${type}&search=${search}`);
-    const orders = await res.json();
+    const data = await res.json();
+    const orders = data.orders || [];
     
     const container = document.getElementById('history-container');
     const summary = document.getElementById('history-summary');
@@ -1861,4 +1911,87 @@ async function llamarN8n() {
     } catch (e) {
         Swal.fire('Error', 'No se pudo conectar con el Webhook de n8n. Revisa si el flujo está activo.', 'error');
     }
+}
+async function loadCajaHistory() {
+    if (currentSection !== 'caja') return;
+    
+    // Obtener fecha local YYYY-MM-DD
+    const now = new Date();
+    const localDate = now.getFullYear() + '-' + 
+                      String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                      String(now.getDate()).padStart(2, '0');
+    
+    try {
+        const res = await fetch(`api.php?action=get_history&date=${localDate}`);
+        const data = await res.json();
+        const orders = data.orders || [];
+        
+        const historyOrders = (orders || []).filter(o => 
+            o.status === 'cobrado' || o.status === 'despachado' || o.status === 'listo'
+        );
+        cajaHistoryOrders = historyOrders; // Guardar en global
+
+        const container = document.getElementById('caja-history-container');
+        if (!container) return;
+
+        if (historyOrders.length === 0) {
+            container.innerHTML = '<div class="empty-state">No hay movimientos registrados hoy</div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="compact-history-list">
+                ${historyOrders.map((o, index) => `
+                    <div class="history-row" onclick="showOrderDetails(${index})">
+                        <span class="history-id">#${o.daily_number || o.id}</span>
+                        <span class="history-name" style="flex: 1;">${o.customer_name}</span>
+                        <span class="history-time">${new Date(o.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        <span class="history-total">$${parseFloat(o.total_usd).toFixed(2)}</span>
+                        <span class="history-status ${o.status}">${o.status.toUpperCase()}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } catch (e) {
+        console.error("Error cargando historial de caja:", e);
+    }
+}
+
+function showOrderDetails(index) {
+    const o = cajaHistoryOrders[index];
+    if (!o) return;
+
+    const groupedItems = getGroupedItems(o.items);
+    const itemsHtml = groupedItems.map(i => `
+        <div style="margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <div style="display: flex; justify-content: space-between;">
+                <strong>${i.quantity} x ${i.name}</strong>
+                <span>$${(i.quantity * i.unitPrice).toFixed(2)}</span>
+            </div>
+            ${i.ingredients.length ? `<div style="font-size: 0.85rem; color: var(--text-muted);">+ ${i.ingredients.map(ing => ing.name).join(', ')}</div>` : ''}
+            ${i.observations ? `<div style="font-size: 0.85rem; color: var(--accent); font-style: italic;">Nota: ${i.observations}</div>` : ''}
+        </div>
+    `).join('');
+
+    Swal.fire({
+        title: `Pedido #${o.daily_number || o.id}`,
+        html: `
+            <div style="text-align: left; font-size: 0.95rem;">
+                <p style="margin-bottom: 1rem;"><strong>Cliente:</strong> ${o.customer_name}</p>
+                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; margin-bottom: 1rem;">
+                    ${itemsHtml}
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: 800; color: var(--secondary);">
+                    <span>TOTAL</span>
+                    <span>$${parseFloat(o.total_usd).toFixed(2)}</span>
+                </div>
+                <p style="margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted);">
+                    Tipo: ${formatOrderType(o.order_type)} ${o.table_number ? `(Mesa: ${o.table_number})` : ''}
+                </p>
+            </div>
+        `,
+        confirmButtonColor: 'var(--primary)',
+        background: 'var(--bg)',
+        color: 'var(--text)'
+    });
 }

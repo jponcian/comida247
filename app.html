@@ -22,7 +22,7 @@
             <button id="nav-dashboard" style="display:none" onclick="showSection('dashboard')">Dashboard</button>
             <button id="nav-admin" style="display:none" onclick="showSection('admin')">Admin</button>
             <button id="nav-super" style="display:none" onclick="showSection('super')">Super</button>
-            <button id="nav-salir" onclick="logout()">Salir</button>
+            <button id="nav-salir" onclick="logout()" title="Cerrar sesión">🚪 Salir</button>
         </div>
 
     </nav>
@@ -38,9 +38,12 @@
             <div id="kitchen-container" class="grid-container"></div>
         </section>
 
-        <!-- SECCIÓN CAJA -->
         <section id="caja" class="view-section">
+            <h2>Pedidos Pendientes</h2>
             <div id="payment-container" class="grid-container"></div>
+            
+            <h2 style="margin-top: 3rem; margin-bottom: 1.5rem;">Historial de Hoy</h2>
+            <div id="caja-history-container" class="grid-container"></div>
         </section>
 
         <!-- SECCIÓN DASHBOARD -->
