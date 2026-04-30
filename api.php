@@ -210,6 +210,12 @@ switch ($action) {
             $stmt = $pdo->prepare("SELECT oi.*, p.name FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?");
             $stmt->execute([$order['id']]);
             $order['items'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($order['items'] as &$item) {
+                $stmt_ing = $pdo->prepare("SELECT oii.*, i.name FROM order_item_ingredients oii JOIN ingredients i ON oii.ingredient_id = i.id WHERE oii.order_item_id = ?");
+                $stmt_ing->execute([$item['id']]);
+                $item['ingredients'] = $stmt_ing->fetchAll(PDO::FETCH_ASSOC);
+            }
         }
         echo json_encode(['orders' => $orders, 'debug' => ['date' => $date, 'business_id' => $business_id]]);
         break;
