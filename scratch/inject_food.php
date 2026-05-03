@@ -87,7 +87,7 @@ try {
     'description' => 'Sandwich con Pollo o Carne, Huevo, Jamón, Queso amarillo, Lechuga, Tomate y salsas.',
     'price_usd' => '4.00',
     'category' => 'Especiales',
-    'image_url' => 'uploads/pepito_mixto_los_calidad_1777749920807.png',
+    'image_url' => 'uploads/sandwich_especial_v2.png',
     'active' => 1,
   ),
   7 => 
@@ -98,7 +98,7 @@ try {
     'description' => 'Papas fritas naturales crujientes.',
     'price_usd' => '4.00',
     'category' => 'Especiales',
-    'image_url' => 'uploads/pepito_mixto_los_calidad_1777749920807.png',
+    'image_url' => 'uploads/papas_fritas_v2.png',
     'active' => 1,
   ),
   8 => 
