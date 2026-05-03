@@ -5,9 +5,8 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     $updates = [
-        ['id' => 32, 'image' => 'uploads/pepito_pollo_v2.png'],
-        ['id' => 33, 'image' => 'uploads/pepito_carne_v2.png'],
-        ['id' => 34, 'image' => 'uploads/pepito_mixto_v2.png'],
+        ['id' => 13, 'image' => 'uploads/sandwich_especial_v2.png'],
+        ['id' => 14, 'image' => 'uploads/papas_fritas_v2.png'],
     ];
 
     $stmt = $pdo->prepare("UPDATE products SET image_url = ? WHERE id = ?");
