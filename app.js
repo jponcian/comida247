@@ -72,13 +72,20 @@ async function refreshData() {
     if (currentSection === 'caja') { loadPaymentOrders(); loadCajaHistory(); }
 }
 
-async function loadProducts() {
-    const res = await fetch('api.php?action=get_products');
-    allProducts = await res.json();
-    const container = document.getElementById('menu-container');
+async function loadProducts(categoryFilter = 'Todos') {
+    if (allProducts.length === 0) {
+        const res = await fetch('api.php?action=get_products');
+        allProducts = await res.json();
+    }
     
+    const container = document.getElementById('menu-container');
+    const filteredProducts = categoryFilter === 'Todos' 
+        ? allProducts 
+        : allProducts.filter(p => p.category === categoryFilter);
+
     if (currentSection === 'pedidos') {
-        container.innerHTML = allProducts.map(p => `
+        renderCategoryFilters(categoryFilter);
+        container.innerHTML = filteredProducts.map(p => `
             <div class="product-card">
                 <img src="${p.image_url}" alt="${p.name}">
                 <div class="product-info">
@@ -105,6 +112,25 @@ async function loadProducts() {
             </div>
         `).join('');
     }
+}
+
+function renderCategoryFilters(activeCategory) {
+    const filterContainer = document.getElementById('category-filters');
+    if (!filterContainer) return;
+
+    // Obtener categorías únicas de los productos cargados
+    const categories = ['Todos', ...new Set(allProducts.map(p => p.category).filter(Boolean))];
+    
+    filterContainer.innerHTML = categories.map(cat => `
+        <button class="filter-btn ${cat === activeCategory ? 'active' : ''}" 
+                onclick="filterByCategory('${cat}')">
+            ${cat}
+        </button>
+    `).join('');
+}
+
+function filterByCategory(category) {
+    loadProducts(category);
 }
 
 async function loadIngredients() {
