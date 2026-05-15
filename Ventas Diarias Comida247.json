@@ -6,13 +6,13 @@
         "url": "https://comida.ventas247.com.ve/api.php?action=get_daily_report&token=optimus_n8n&business_id=1",
         "options": {}
       },
-      "id": "6adce21a-7110-4743-9107-a30f670e363b",
+      "id": "66011b9c-a3f9-4fd3-a7a2-bfeafa1bbd41",
       "name": "Obtener Datos de Ventas",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        6160,
-        272
+        6368,
+        352
       ]
     },
     {
@@ -33,13 +33,13 @@
         "jsonBody": "={\n  \"number\": \"584144679693\",\n  \"text\": {{ JSON.stringify($json.text) }},\n  \"delay\": 1200\n}\n",
         "options": {}
       },
-      "id": "543b9641-2f51-4392-9513-7d609c58eae6",
+      "id": "8e343079-1a0b-4daf-8c90-a21267f6f919",
       "name": "Enviar WhatsApp",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        6784,
-        304
+        7136,
+        352
       ]
     },
     {
@@ -47,12 +47,12 @@
         "promptType": "define",
         "text": "=Eres el asistente virtual de 'Los Calidad'. Genera un resumen ejecutivo y entusiasta para WhatsApp basado en estos datos de ventas de hoy:\\n\\n📅 *Fecha:* {{ $json.date }}\\n💰 *Ventas Totales:* {{ $json.summary.revenue_usd }}$\\n📦 *Total Pedidos:* {{ $json.summary.order_count }}\\n🏆 *Top Productos:* {{ JSON.stringify($json.products) }}\\n\\n\\n*Instrucciones MUY IMPORTANTES:* \\n1. Usa emojis adecuados.\\n2. Destaca el producto más vendido.\\n3. Termina con un mensaje motivador para el equipo.\\n4. Mantén un tono profesional pero muy amable.\\n5. El formato debe ser limpio para lectura en móvil.\\n6. PROHIBIDO incluir textos introductorios como 'Aquí tienes una propuesta' o 'Este es el resumen'. Comienza directamente con el mensaje final para WhatsApp."
       },
-      "id": "7c2e2b4e-a913-4866-9b77-8904d05e58e9",
+      "id": "39e72996-1691-4621-b0d4-588f130c003a",
       "name": "Basic LLM Chain",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.4,
       "position": [
-        6384,
+        6832,
         288
       ]
     },
@@ -61,13 +61,13 @@
         "model": "gemma4:31b",
         "options": {}
       },
-      "id": "a1fdffb6-f323-4854-b625-e3df9dd6796c",
+      "id": "56e5e954-a998-44e9-9fe4-9a13d94c5d2b",
       "name": "Ollama Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
       "typeVersion": 1,
       "position": [
-        6336,
-        496
+        6656,
+        528
       ],
       "credentials": {
         "ollamaApi": {
@@ -82,13 +82,13 @@
         "responseMode": "lastNode",
         "options": {}
       },
-      "id": "51aab2d6-daec-4667-8972-386f352a2d30",
+      "id": "c4bbf38e-76ba-4266-948e-c83d3472ab75",
       "name": "Webhook Manual",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        5920,
-        464
+        6176,
+        512
       ],
       "webhookId": "0794df30-0a00-4658-bcb2-d2d152aaae33"
     },
@@ -103,13 +103,13 @@
           ]
         }
       },
-      "id": "63e137b2-6a7a-4650-ad25-22307807d1aa",
+      "id": "4c0cb5df-74f9-4220-b209-b32c969a92a1",
       "name": "Schedule Trigger (11:30 PM)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
       "position": [
-        5920,
-        256
+        6144,
+        304
       ]
     },
     {
@@ -118,19 +118,18 @@
           "number": [
             {
               "value1": "={{ $json.summary.order_count }}",
-              "operation": "larger",
-              "value2": 0
+              "operation": "larger"
             }
           ]
         }
       },
-      "id": "78787878-7878-7878-7878-787878787878",
+      "id": "f3f1edeb-407c-4f1e-a28a-af808b786b2a",
       "name": "Verificar si hay ventas",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        6272,
-        280
+        6576,
+        320
       ]
     }
   ],
@@ -213,7 +212,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },
-  "versionId": "c2ebb1b5-0ce7-402d-93dd-b7c43b44a59f",
+  "versionId": "9c5b8169-e400-4533-8acb-1a3e0b732b2e",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "4d46900db2a9dbc3e4e0a206fdb9a2ed9d31e358eee1dbd0d07e169d4c02e50b"
