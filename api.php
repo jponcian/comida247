@@ -14,7 +14,7 @@ try {
 }
 
 // Verificar autenticación y negocio seleccionado
-$n8n_token = 'optimus_n8n';
+$n8n_token = N8N_TOKEN;
 if (!isset($_SESSION['user_id']) || (!isset($_SESSION['business_id']) && !$_SESSION['is_super_admin'])) {
     if (($_GET['action'] ?? '') !== 'get_exchange_rate' && ($_GET['token'] ?? '') !== $n8n_token) {
         die(json_encode(['error' => 'No autorizado']));
@@ -557,7 +557,7 @@ switch ($action) {
         break;
 
     case 'trigger_n8n':
-        $url = 'http://178.104.106.5:5678/webhook/generar-reporte-whatsapp';
+        $url = N8N_URL;
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 5);
