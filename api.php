@@ -38,11 +38,11 @@ switch ($action) {
         if ($role !== 'administrador' && !$is_super) die(json_encode(['error' => 'Permiso denegado']));
         $data = json_decode(file_get_contents('php://input'), true);
         if (isset($data['id'])) {
-            $stmt = $pdo->prepare("UPDATE products SET name=?, description=?, price_usd=?, category=?, image_url=? WHERE id=? AND business_id=?");
-            $stmt->execute([$data['name'], $data['description'], $data['price_usd'], $data['category'], $data['image_url'], $data['id'], $business_id]);
+            $stmt = $pdo->prepare("UPDATE products SET name=?, description=?, price_usd=?, price_medium_usd=?, price_large_usd=?, category=?, image_url=? WHERE id=? AND business_id=?");
+            $stmt->execute([$data['name'], $data['description'], $data['price_usd'], $data['price_medium_usd'] ?? null, $data['price_large_usd'] ?? null, $data['category'], $data['image_url'], $data['id'], $business_id]);
         } else {
-            $stmt = $pdo->prepare("INSERT INTO products (business_id, name, description, price_usd, category, image_url) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$business_id, $data['name'], $data['description'], $data['price_usd'], $data['category'], $data['image_url']]);
+            $stmt = $pdo->prepare("INSERT INTO products (business_id, name, description, price_usd, price_medium_usd, price_large_usd, category, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$business_id, $data['name'], $data['description'], $data['price_usd'], $data['price_medium_usd'] ?? null, $data['price_large_usd'] ?? null, $data['category'], $data['image_url']]);
         }
         echo json_encode(['success' => true]);
         break;
@@ -241,11 +241,11 @@ switch ($action) {
                 $pdo->prepare("DELETE FROM order_items WHERE order_id = ?")->execute([$order_id]);
             }
 
-            $stmt_item = $pdo->prepare("INSERT INTO order_items (order_id, product_id, quantity, price_at_time, observations) VALUES (?, ?, ?, ?, ?)");
+            $stmt_item = $pdo->prepare("INSERT INTO order_items (order_id, product_id, size, quantity, price_at_time, observations) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt_extra = $pdo->prepare("INSERT INTO order_item_ingredients (order_item_id, ingredient_id, price_at_time) VALUES (?, ?, ?)");
 
             foreach ($data['items'] as $item) {
-                $stmt_item->execute([$order_id, $item['id'], $item['quantity'] ?? 1, $item['price'], $item['observations'] ?? '']);
+                $stmt_item->execute([$order_id, $item['id'], $item['size'] ?? null, $item['quantity'] ?? 1, $item['price'], $item['observations'] ?? '']);
                 $item_id = $pdo->lastInsertId();
 
                 

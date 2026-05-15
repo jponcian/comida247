@@ -207,7 +207,9 @@
             <input type="hidden" id="edit-product-id">
             <div class="input-group"><label>Nombre</label><input type="text" id="prod-name"></div>
             <div class="input-group"><label>Descripción</label><input type="text" id="prod-desc"></div>
-            <div class="input-group"><label>Precio USD</label><input type="number" step="0.01" id="prod-price" inputmode="decimal"></div>
+            <div class="input-group"><label>Precio Pequeña / Base (USD)</label><input type="number" step="0.01" id="prod-price" inputmode="decimal"></div>
+            <div class="input-group"><label>Precio Mediana (USD) - Opcional</label><input type="number" step="0.01" id="prod-price-medium" inputmode="decimal"></div>
+            <div class="input-group"><label>Precio Grande (USD) - Opcional</label><input type="number" step="0.01" id="prod-price-large" inputmode="decimal"></div>
             <div class="input-group"><label>Categoría</label><input type="text" id="prod-cat"></div>
             <div class="input-group">
                 <label>Imagen del Producto</label>
@@ -400,6 +402,36 @@
     <!-- BOTÓN FLOTANTE PEDIDOS EN ESPERA -->
     <button id="btn-standby-list" class="btn-standby-float" onclick="openStandbyModal()" style="display: none;"></button>
 
-    <script src="app.js?v=1.1"></script>
+    <!-- MODAL CAMBIAR MESA -->
+    <div id="modal-change-table" class="modal">
+        <div class="modal-content">
+            <h3>Cambiar Mesa</h3>
+            <input type="hidden" id="change-table-order-id">
+            <div class="input-group">
+                <label>Seleccionar Nueva Mesa</label>
+                <select id="new-table-select"></select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('modal-change-table')">Cancelar</button>
+                <button class="btn-confirm" onclick="saveChangeTable()">Guardar Cambio</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SELECCIONAR TAMAÑO -->
+    <div id="modal-select-size" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <h3>Seleccionar Tamaño</h3>
+            <p id="size-product-name" style="margin-bottom: 1rem; font-weight: 600;"></p>
+            <div id="size-options-container" style="display: grid; gap: 0.8rem;">
+                <!-- Botones de tamaño se generarán aquí -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('modal-select-size')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=1.2"></script>
 </body>
 </html>

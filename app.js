@@ -85,19 +85,21 @@ async function loadProducts(categoryFilter = 'Todos') {
 
     if (currentSection === 'pedidos') {
         renderCategoryFilters(categoryFilter);
-        container.innerHTML = filteredProducts.map(p => `
+        container.innerHTML = filteredProducts.map(p => {
+            const hasSizes = p.price_medium_usd || p.price_large_usd;
+            return `
             <div class="product-card">
                 <img src="${p.image_url}" alt="${p.name}">
                 <div class="product-info">
                     <h3>${p.name}</h3>
                     <p>${p.description}</p>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span class="price-tag">$${parseFloat(p.price_usd).toFixed(2)}</span>
-                        <button class="btn-add" onclick="addToCart(${JSON.stringify(p).replace(/"/g, '&quot;')})">Añadir</button>
+                        <span class="price-tag">$${parseFloat(p.price_usd).toFixed(2)}${hasSizes ? '+' : ''}</span>
+                        <button class="btn-add" onclick='handleAddToCart(${JSON.stringify(p).replace(/'/g, "&apos;")})'>Añadir</button>
                     </div>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
     }
 
     // Si estamos en admin, cargar lista de admin
@@ -150,18 +152,51 @@ async function loadIngredients() {
     }
 }
 
-function addToCart(product) {
+function handleAddToCart(product) {
+    const hasSizes = product.price_medium_usd || product.price_large_usd;
+    if (hasSizes) {
+        openSizeModal(product);
+    } else {
+        addToCart(product);
+    }
+}
+
+function openSizeModal(product) {
+    const container = document.getElementById('size-options-container');
+    document.getElementById('size-product-name').innerText = product.name;
+    
+    let options = [];
+    options.push({ label: 'Pequeña (Base)', size: 'P', price: product.price_usd });
+    if (product.price_medium_usd) options.push({ label: 'Mediana', size: 'M', price: product.price_medium_usd });
+    if (product.price_large_usd) options.push({ label: 'Grande', size: 'G', price: product.price_large_usd });
+
+    container.innerHTML = options.map(opt => `
+        <button class="btn-confirm" style="justify-content: space-between; display: flex; padding: 1rem;" 
+                onclick='addToCart(${JSON.stringify(product).replace(/'/g, "&apos;")}, "${opt.size}", ${opt.price})'>
+            <span>${opt.label}</span>
+            <span>$${parseFloat(opt.price).toFixed(2)}</span>
+        </button>
+    `).join('');
+    
+    document.getElementById('modal-select-size').style.display = 'flex';
+}
+
+function addToCart(product, size = null, price = null) {
+    const itemPrice = price !== null ? parseFloat(price) : parseFloat(product.price_usd);
     cart.push({
         id: product.id,
         name: product.name,
-        price: parseFloat(product.price_usd),
-        basePrice: parseFloat(product.price_usd),
+        size: size,
+        price: itemPrice,
+        basePrice: itemPrice,
         quantity: 1,
         extras: [],
         observations: ''
     });
 
+    if (size) closeModal('modal-select-size');
     updateCartUI();
+    showNotification(`✅ ${product.name} añadido`);
 }
 
 function updateCartUI() {
@@ -189,7 +224,7 @@ function openCheckoutModal() {
         <div class="checkout-item">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="flex: 1;">
-                    <strong>${item.name}</strong>
+                    <strong>${item.name}${item.size ? ` <span class="badge listo" style="font-size: 0.7rem; padding: 2px 5px;">${item.size}</span>` : ''}</strong>
                     ${(item.extras.length || item.observations) ? `
                         <div style="font-size: 0.75rem; color: var(--text-muted); font-style: italic; margin-top: 2px;">
                             (${[...item.extras.map(e => e.name), item.observations].filter(Boolean).join(', ')})
@@ -359,6 +394,7 @@ async function confirmOrder() {
             items: cart.map(i => ({
                 id: i.id,
                 name: i.name,
+                size: i.size,
                 price: i.basePrice,
                 quantity: i.quantity,
                 extras: i.extras,
@@ -571,7 +607,7 @@ async function loadKitchenOrders() {
                 <div class="order-details">
                     ${groupedItems.map(i => `
                         <div style="margin-bottom: 0.3rem;">
-                            <strong><span style="color: var(--secondary); font-size: 1.1rem;">${i.quantity} x </span>${i.name}</strong> 
+                            <strong><span style="color: var(--secondary); font-size: 1.1rem;">${i.quantity} x </span>${i.name}${i.size ? ` <span class="badge listo" style="font-size: 0.75rem; padding: 2px 6px;">${i.size}</span>` : ''}</strong> 
                             ${i.ingredients.length ? `<span class="extras-preview">(${i.ingredients.map(ing => ing.name).join(', ')})</span>` : ''}
                             ${i.observations ? `<div style="margin-left: 1rem; font-size: 0.9rem; color: var(--accent); font-style: italic;">↳ ${i.observations}</div>` : ''}
                         </div>
@@ -584,6 +620,7 @@ async function loadKitchenOrders() {
                             ${o.status === 'pendiente' ? '👩‍🍳 Empezar' : '✅ Listo'}
                         </button>
                     ` : ''}
+                    <button class="btn-status" style="flex: 1; background: var(--glass); color: white;" onclick="openChangeTableModal(${o.id}, '${o.table_number || ''}')">📍 Mesa</button>
                     ${userRole !== 'cocina' ? `
                         <button class="btn-status" style="flex: 1; background: rgba(255,255,255,0.1); color: white;" onclick="editExistingOrder(${JSON.stringify(o).replace(/\"/g, '&quot;')})">✏️ Editar</button>
                     ` : ''}
@@ -670,7 +707,7 @@ async function loadPaymentOrders() {
             return `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 0.9rem; margin-bottom: 6px;">
                     <div style="flex: 1;">
-                        <span style="color: var(--secondary); font-weight: 600;">${i.quantity} x</span> ${i.name}
+                        <span style="color: var(--secondary); font-weight: 600;">${i.quantity} x</span> ${i.name}${i.size ? ` <span class="badge listo" style="font-size: 0.7rem; padding: 2px 5px; margin-left: 5px;">${i.size}</span>` : ''}
                         ${i.ingredients.length ? `<div style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">+ ${i.ingredients.map(ing => ing.name).join(', ')}</div>` : ''}
                     </div>
                     <div style="text-align: right; min-width: 100px;">
@@ -727,7 +764,10 @@ async function loadPaymentOrders() {
                     ` : `<div></div>`}
 
                     ${(userRole === 'caja') || (userRole === 'atencion' && (o.status === 'listo' || o.status === 'cobrado' || o.status === 'despachado')) ? '' : 
-                        (actionBtn || `<button class="btn-pay" style="background: rgba(255,255,255,0.1); color: white; box-shadow: none;" onclick="editExistingOrder(${JSON.stringify(o).replace(/\"/g, '&quot;')})">✏️ Editar</button>`)
+                        `<div style="display: flex; gap: 0.5rem; width: 100%;">
+                            <button class="btn-pay" style="background: var(--glass); color: white; box-shadow: none; flex: 1;" onclick="openChangeTableModal(${o.id}, '${o.table_number || ''}')">📍 Mesa</button>
+                            ${actionBtn || `<button class="btn-pay" style="background: rgba(255,255,255,0.1); color: white; box-shadow: none; flex: 1;" onclick="editExistingOrder(${JSON.stringify(o).replace(/\"/g, '&quot;')})">✏️ Editar</button>`}
+                        </div>`
                     }
                 </div>
             </div>
@@ -746,6 +786,7 @@ function getGroupedItems(items) {
         const ingredients = item.ingredients || [];
         const itemKey = JSON.stringify({
             id: item.product_id,
+            size: item.size || '',
             obs: item.observations,
             extras: ingredients.map(ing => ing.ingredient_id).sort()
         });
@@ -761,6 +802,7 @@ function getGroupedItems(items) {
             grouped.push({
                 key: itemKey,
                 name: item.name,
+                size: item.size,
                 quantity: parseInt(item.quantity || 1),
                 unitPrice: unitPrice,
                 ingredients: ingredients,
@@ -1025,6 +1067,7 @@ function editExistingOrder(order) {
     cart = order.items.map(i => ({
         id: i.product_id,
         name: i.name,
+        size: i.size,
         basePrice: parseFloat(i.price_at_time),
         quantity: i.quantity,
         observations: i.observations || '',
@@ -1534,6 +1577,8 @@ function openProductModal(prod = null) {
     document.getElementById('prod-name').value = prod ? prod.name : '';
     document.getElementById('prod-desc').value = prod ? prod.description : '';
     document.getElementById('prod-price').value = prod ? prod.price_usd : '';
+    document.getElementById('prod-price-medium').value = prod ? prod.price_medium_usd || '' : '';
+    document.getElementById('prod-price-large').value = prod ? prod.price_large_usd || '' : '';
     document.getElementById('prod-cat').value = prod ? prod.category : '';
     document.getElementById('prod-img').value = prod ? prod.image_url : '';
     
@@ -1597,6 +1642,8 @@ async function saveProduct() {
         name: document.getElementById('prod-name').value,
         description: document.getElementById('prod-desc').value,
         price_usd: document.getElementById('prod-price').value,
+        price_medium_usd: document.getElementById('prod-price-medium').value || null,
+        price_large_usd: document.getElementById('prod-price-large').value || null,
         category: document.getElementById('prod-cat').value,
         image_url: imageUrl
     };
@@ -1981,6 +2028,58 @@ async function loadCajaHistory() {
         `;
     } catch (e) {
         console.error("Error cargando historial de caja:", e);
+    }
+}
+
+async function openChangeTableModal(orderId, currentTable) {
+    document.getElementById('change-table-order-id').value = orderId;
+    const res = await fetch('api.php?action=get_tables');
+    const tables = await res.json();
+    const select = document.getElementById('new-table-select');
+    select.innerHTML = tables.map(t => `<option value="${t.name}" ${t.name === currentTable ? 'selected' : ''}>📍 ${t.name}</option>`).join('');
+    document.getElementById('modal-change-table').style.display = 'flex';
+}
+
+async function saveChangeTable() {
+    const orderId = document.getElementById('change-table-order-id').value;
+    const newTable = document.getElementById('new-table-select').value;
+    
+    // Obtener la orden actual para no perder datos
+    const resOrders = await fetch('api.php?action=get_orders');
+    const orders = await resOrders.json();
+    const order = orders.find(o => o.id == orderId);
+    
+    if (!order) return;
+    
+    const data = {
+        id: order.id,
+        customer_name: order.customer_name,
+        customer_phone: order.customer_phone,
+        order_type: order.order_type,
+        table_number: newTable,
+        total_usd: order.total_usd,
+        observations: order.observations,
+        items: order.items.map(i => ({
+            id: i.product_id,
+            name: i.name,
+            size: i.size,
+            price: i.price_at_time,
+            quantity: i.quantity,
+            extras: i.ingredients.map(ing => ({ id: ing.ingredient_id, price: ing.price_at_time })),
+            observations: i.observations
+        }))
+    };
+
+    const res = await fetch('api.php?action=update_order', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+    
+    const result = await res.json();
+    if (result.success) {
+        Swal.fire({ title: '¡Mesa Cambiada!', icon: 'success', background: 'var(--bg)', color: 'var(--text)', timer: 1500, showConfirmButton: false });
+        closeModal('modal-change-table');
+        refreshData();
     }
 }
 
